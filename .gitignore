@@ -1,0 +1,12 @@
+# Server parameters and production secrets
+server/*-serverset.txt
+**/*.env
+!**/*.env.example
+
+# Local build and runtime outputs
+**/.gradle/
+**/build/
+**/__pycache__/
+**/*.pyc
+**/.venv/
+**/local.properties

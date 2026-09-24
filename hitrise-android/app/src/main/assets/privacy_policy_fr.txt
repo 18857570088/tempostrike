@@ -1,0 +1,47 @@
+Politique de confidentialité de TempoStrike
+Version : V2.1
+Date d'entrée en vigueur : 2026-09-17
+
+1. Champ d'application et responsable
+TempoStrike est une application d'entraînement sur cible murale de boxe connectée, proposée par Shaoxing Weimai Technology Co., Ltd. La présente politique explique le traitement des données pour la connexion Bluetooth SENWALL#, l'entraînement en direct, les historiques cloud, les succès, les classements et le profil. Veuillez la lire avant d'utiliser l'application.
+
+2. Données traitées et finalités
+Identifiants de l'utilisateur et de l'installation. Lors de la première utilisation, l'application génère automatiquement un identifiant utilisateur et un identifiant d'installation, et calcule une empreinte de l'appareil. Les requêtes cloud utilisent ces identifiants internes, l'état d'accès nécessaire et la version de l'application pour associer les entraînements et fournir le service. Un nom civil n'est pas nécessaire.
+Profil. Votre pseudo, votre langue, votre code de région et la couleur de votre avatar sont synchronisés avec votre profil TempoStrike. Si vous choisissez une photo d'avatar dans le sélecteur de fichiers du système, l'application conserve sa référence et l'affiche localement. La version actuelle n'envoie pas cette photo au serveur TempoStrike.
+Bluetooth et cible murale. Pour rechercher et connecter SENWALL#, l'application traite le nom et l'adresse des appareils proches, l'état de connexion, la batterie et la charge, ainsi que le nombre cumulé de coups, le score de puissance relative et le point d'impact (1 à 6) transmis par la cible. Le point d'impact anime la zone correspondante ; l'envoi cloud actuel contient des résumés et non l'historique brut de chaque point d'impact.
+Entraînement. L'application traite les horaires des séances, les rounds, les coups, les scores de puissance relative maximal et moyen, le BPM choisi et la cadence d'entraînement, les scores de rythme, les enchaînements, les estimations de calories et de graisse équivalente, le mode, les choix sonores et les heures de début et de fin. Ces données servent au retour en direct, aux rapports par round, à l'historique, aux succès et aux classements. Un résumé est envoyé après chaque round.
+Fonctionnement et réseau. Les requêtes cloud utilisent des données d'installation et d'authentification ainsi que la version de l'application. Le service peut traiter l'heure et l'adresse IP de la requête, son résultat et les erreurs afin d'assurer la communication, la sécurité et le dépannage.
+
+3. Fondements du traitement et choix
+Nous traitons les données nécessaires aux fonctions d'entraînement, de synchronisation et de classement que vous utilisez. Lorsque la loi applicable l'exige, nous recueillons le consentement ou respectons une autre obligation légale. Sans autorisation Bluetooth, la connexion et l'entraînement en direct ne fonctionnent pas. Sans réseau, les rapports terminés restent dans une file locale et sont renvoyés lorsque la connexion revient.
+
+4. Autorisations et fonctions du téléphone
+Les autorisations de recherche et de connexion Bluetooth servent à trouver SENWALL# et à recevoir ses données. Certaines versions d'Android exigent aussi l'autorisation de localisation précise pour rechercher des appareils Bluetooth ; l'application n'utilise pas la localisation pour établir un historique de déplacements.
+L'accès Internet sert à la synchronisation du profil et des entraînements, aux classements, aux succès et aux ressources. Une tâche persistante retente l'envoi des rapports en attente lorsqu'un réseau est disponible. La vibration, le haut-parleur et la synthèse vocale du système produisent les rythmes, effets et indications d'entraînement.
+Le choix d'une photo d'avatar passe par le sélecteur de fichiers du système. Un texte ou une affiche n'est fourni à une autre application que si vous décidez de le partager. Cette version ne demande ni accès au microphone ni accès à l'appareil photo et ne compte pas les coups par enregistrement sonore.
+
+5. Stockage local, cloud et renvoi différé
+La langue, les réglages d'entraînement et de musique, le dernier appareil Bluetooth, la référence locale de la photo d'avatar, les identifiants internes de l'utilisateur et les caches sont conservés dans l'espace privé de l'application. La file d'attente contient temporairement des résumés d'entraînement avec des identifiants d'accès au service ; chaque élément est retiré après un envoi réussi.
+Les données du profil, les résumés de séances et de rounds envoyés, les succès et les classements sont stockés dans le service et la base TempoStrike, distincts du projet HitRise d'origine. Désinstaller l'application ou effacer ses données peut supprimer les rapports encore en attente. Les données déjà synchronisées ne sont pas automatiquement supprimées du cloud.
+
+6. Visibilité, partage et services externes
+Les classements montrent aux autres utilisateurs votre pseudo, un identifiant utilisateur masqué, la région, le rang et le score concerné. Si vous partagez un contenu, l'application destinataire reçoit le texte ou l'affiche choisis et les traite selon ses propres règles. Les indications parlées passent par le service de synthèse vocale configuré sur votre appareil ; son traitement dépend de ses paramètres.
+Nous ne vendons pas les données personnelles. Les prestataires d'hébergement et de réseau peuvent accéder aux données nécessaires pour fournir l'infrastructure cloud. Si un partage, un transfert ou une communication transfrontière exige une information ou un consentement distinct, nous suivrons la procédure applicable.
+
+7. Durée de conservation et sécurité
+Nous conservons les données pendant la durée raisonnablement la plus courte nécessaire aux finalités indiquées, sous réserve des obligations légales et des besoins liés aux litiges ou incidents de sécurité. Vous pouvez demander la suppression des données personnelles cloud à l'adresse ci-dessous. Après vérification de votre identité, nous supprimerons ou anonymiserons les données conformément à la loi, ou expliquerons pourquoi une suppression immédiate n'est pas possible.
+L'application communique avec le cloud par HTTPS et applique un contrôle d'accès, une gestion des autorisations et d'autres mesures raisonnables. Aucun réseau ni appareil n'est totalement sûr ; protégez votre téléphone et les données de l'application.
+
+8. Vos droits
+Vous pouvez consulter l'historique, les succès, les classements et votre profil dans l'application, et modifier les champs proposés, notamment le pseudo et la langue. Pour demander l'accès, une copie, la rectification, l'effacement, le retrait d'un consentement applicable ou tout autre droit prévu par la loi, écrivez-nous. Une vérification d'identité peut être nécessaire. Le retrait ne remet pas en cause un traitement licite antérieur, mais peut limiter certaines fonctions.
+
+9. Mineurs
+Les mineurs doivent utiliser le service avec l'accord et l'accompagnement d'un parent ou tuteur, et adapter l'intensité de l'exercice. Si un responsable légal estime que les données d'un enfant ont été traitées sans autorisation appropriée, il peut nous contacter.
+
+10. Modifications
+Si les fonctions ou les traitements changent de manière importante, nous mettrons cette politique à jour et vous en informerons dans l'application, dans les notes de version ou par un autre moyen raisonnable. Nous solliciterons de nouveau votre consentement lorsque la loi l'exige.
+
+11. Contact
+Responsable : Shaoxing Weimai Technology Co., Ltd.
+E-mail : zclei@vip.sina.com
+Utilisez cette adresse pour toute question, réclamation ou demande relative à vos données.

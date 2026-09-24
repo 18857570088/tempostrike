@@ -1,0 +1,18 @@
+{
+  "version": 3,
+  "updated_at": "2026-05-20T15:45:00+08:00",
+  "license": "original_hitrise_generated",
+  "items": [
+    {
+      "id": "htr_music_champion_rush",
+      "name_zh": "冠军冲刺",
+      "name_en": "Champion Rush",
+      "description_zh": "明亮电子主旋律，适合训练开始后提速。 约 122 BPM。",
+      "description_en": "Bright electro melody for energetic warm-up pushes. Around 122 BPM.",
+      "style": "light_electro",
+      "bpm": 122,
+      "file": "01_htr_music_champion_rush.wav",
+      "duration_ms": 15738
+    }
+  ]
+}

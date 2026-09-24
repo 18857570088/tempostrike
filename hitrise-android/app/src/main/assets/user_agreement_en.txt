@@ -1,0 +1,44 @@
+TempoStrike User Agreement
+Version: V2.1
+Effective date: 2026-09-17
+
+1. Scope
+This Agreement covers the TempoStrike app and the SENWALL# smart boxing wall-target connection, training records, achievements, leaderboards, profile and audio services provided by Shaoxing Weimai Technology Co., Ltd. Please also read the TempoStrike Privacy Policy. Use of the service is subject to this Agreement; if you disagree, stop using it. Matters requiring separate consent will be presented separately.
+
+2. Features and dependencies
+TempoStrike connects to a six-pad SENWALL# wall target and displays cumulative punch count, Relative Power Score, the hit pad and battery status. It provides live and round-based training, free and beat-following modes, 180–400 BPM settings, BPM-matched groove and background music, reports, achievements and leaderboards. Some audio is generated or bundled in the app.
+Connection, cloud sync and resources depend on the target, phone Bluetooth, system permissions, network and cloud service. Device and system differences can affect availability, timing and data.
+
+3. User ID and profile
+On first use, the app automatically generates a user ID and installation ID to associate cloud training records. Protect your phone and app data. You may set a nickname, language, region and avatar. A chosen avatar photo is displayed locally; avatar color and other profile fields may be synchronized to the cloud. Do not impersonate others or submit material that infringes their rights.
+
+4. Safe training
+Before use, make sure the wall target is firmly mounted and the surrounding area is clear. Warm up and use suitable hand protection. Choose an intensity appropriate for your condition. The 180–400 BPM setting controls audio tempo; it is not a required punching rate. Stop immediately if you experience chest pain, dizziness, injury or other discomfort, and seek professional help when needed. Minors should train under a guardian's guidance.
+
+5. Bluetooth data and estimates
+The app uses wall-target Bluetooth data to show punch count, hit pads 1–6 and Relative Power Score. Sensors, mounting, signal quality and technique can affect results. Relative Power Score is the value reported by the hardware, has not been calibrated with a standard force meter, and has no physical unit such as kg, kgf or N. Use it only to observe trends under comparable conditions.
+Calories, equivalent fat burn, beat accuracy, combos and other statistics are exercise feedback or estimates. They are not medical diagnoses, rehabilitation assessments, nutrition advice or official competition judgments.
+
+6. Cloud sync, leaderboards and sharing
+After each round, the app attempts to upload a training summary to the TempoStrike cloud. If offline or an upload fails, it queues the summary locally and retries when a network is available. Completion depends on network and service conditions; uninstalling or clearing app data may lose reports that have not uploaded.
+Leaderboards may show other users your nickname, masked user ID, region, tier and result. When you choose to share a poster or text, the selected app receives that content. Consider this visibility before setting a nickname or sharing.
+
+7. Acceptable use
+Do not falsify training results, undermine leaderboard fairness, attack or abuse service interfaces, distribute unlawful or infringing material, or copy, extract or commercially exploit the app, audio or other content without authorization, except where law expressly permits. We may reasonably restrict related features or leaderboard displays in response to clear abuse or infringement, and provide a contact channel for objections.
+
+8. Content and intellectual property
+The TempoStrike brand, interface, code, graphics, badges, text, sound effects, synthesized rhythm and bundled music belong to us or their lawful owners. You receive only the limited permission needed for personal use of the service, not ownership or a separate right to redistribute or commercially use the content.
+
+9. Changes and interruptions
+Maintenance, upgrades, security, network issues or hardware compatibility may require us to change or temporarily interrupt part of the service. We will make reasonable efforts to reduce disruption. Material service or Agreement changes will be announced through the app, release notes or another reasonable method.
+
+10. Responsibility
+Follow the installation instructions and safe-training guidance. Responsibility for effects of improper mounting, training beyond physical capacity, Bluetooth or network failures and similar circumstances is determined by the facts and applicable law. This Agreement does not exclude or limit consumer or personal-injury rights that cannot legally be excluded.
+
+11. Governing law and disputes
+This Agreement is governed by the laws of the People's Republic of China, without affecting mandatory consumer or personal-data protections applicable where you live. The parties should first try to resolve disputes amicably; otherwise, either may bring a claim before a court with jurisdiction.
+
+12. Contact
+Operator: Shaoxing Weimai Technology Co., Ltd.
+Email: zclei@vip.sina.com
+Contact us about the service, complaints or objections to a service restriction.

@@ -1,0 +1,70 @@
+﻿plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+}
+
+android {
+    namespace = "com.zclei.hitrise"
+    compileSdk = 35
+
+    defaultConfig {
+        applicationId = "com.zclei.tempostrike"
+        minSdk = 26
+        targetSdk = 35
+        versionCode = 10
+        versionName = "1.4.5"
+        buildConfigField(
+            "String",
+            "TEMPOSTRIKE_API_BASE_URL",
+            "\"https://hitrise.86086.cn/tempostrike\"",
+        )
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    buildFeatures {
+        buildConfig = true
+    }
+
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+}
+
+val packageDebugApk by tasks.registering(Copy::class) {
+    dependsOn("assembleDebug")
+    from(layout.buildDirectory.file("outputs/apk/debug/app-debug.apk"))
+    into(layout.buildDirectory.dir("outputs/apk/distribution"))
+    rename { "TempoStrike.apk" }
+}
+
+dependencies {
+    testImplementation("junit:junit:4.13.2")
+    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.activity:activity-ktx:1.10.0")
+    implementation("androidx.collection:collection-jvm:1.4.4")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+}

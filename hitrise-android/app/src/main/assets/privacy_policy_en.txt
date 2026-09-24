@@ -1,0 +1,47 @@
+TempoStrike Privacy Policy
+Version: V2.1
+Effective date: 2026-09-17
+
+1. Scope and operator
+TempoStrike is a smart boxing wall-target training app provided by Shaoxing Weimai Technology Co., Ltd. This Policy explains how information is handled when we provide SENWALL# Bluetooth connectivity, live training, cloud records, achievements, leaderboards and profile features. Please read it before using the app.
+
+2. Information and purposes
+User and installation identifiers. On first use, the app automatically generates a user ID and installation ID and computes a device digest. Cloud requests use these internal identifiers, necessary access state and the app version to associate training records and operate the service. A real name is not required.
+Profile. Your nickname, language, region code and avatar color are synchronized to your TempoStrike cloud profile. If you choose an avatar photo through the system file picker, the app stores a reference to it and displays it locally. The current version does not upload that photo to the TempoStrike server.
+Bluetooth and wall target. To discover and connect to SENWALL#, the app handles nearby device names and addresses, connection and battery/charging status, and the wall target's cumulative punch count, Relative Power Score and pressure hit position (1–6). Position data drives the live pad highlight; the current training upload contains summaries, not a raw record of each punch position.
+Training. The app handles session times, rounds, punch counts, peak and average Relative Power Score, selected beat BPM and training pace, beat scores, combos, estimated calories and equivalent fat burn, play mode, sound selection and start/end times for live feedback, per-round reports, history, achievements and rankings. A summary is submitted after each round.
+Operations and network. Cloud requests use installation and authentication details and the app version. The service may process request time, IP address, result and error information to communicate, maintain security and troubleshoot failures.
+
+3. Grounds for processing and your choices
+We process information needed to provide the training, sync and leaderboard functions you choose. Where applicable law requires it, we seek consent or meet another legal obligation. Refusing Bluetooth permissions prevents device connection and live training. Without a network, completed reports remain in a local upload queue and are retried when connectivity returns.
+
+4. Device permissions and functions
+Bluetooth scan/connect permissions discover and connect to SENWALL# and receive its data. Some Android versions also require precise-location permission for Bluetooth scanning; the app does not use location services to create a movement trail.
+Internet access supports profile and training sync, leaderboards, achievements and resource retrieval. A persisted background job retries queued reports when a network is available. Vibration, speaker output and system text-to-speech provide beats, effects and training cues.
+Avatar selection uses the system file picker. A training poster or text is provided to another app only when you choose to share it. This version requests neither microphone nor camera permission and does not count punches by recording audio.
+
+5. Local storage, cloud storage and offline retry
+Language, training and music settings, the last Bluetooth device, the local avatar-photo reference, internal user identifiers and caches are stored in app-private storage. The pending queue temporarily stores training summaries that include service access identifiers; an item is removed after a successful upload.
+Profile data, uploaded session and round summaries, achievements and rankings are stored by the TempoStrike cloud service and database, separate from the original HitRise project. Uninstalling or clearing app data may erase pending reports before they are uploaded. It does not automatically remove data already synchronized to the cloud.
+
+6. Visibility, sharing and external services
+Leaderboards display your nickname, masked user ID, region, tier and relevant score to other users. If you share content, the receiving app obtains the selected text or poster and handles it under its own rules. Spoken cues are handled by the text-to-speech service configured on your device; its processing depends on that service's settings.
+We do not sell personal information. Hosting and network providers may access necessary information while supplying our cloud infrastructure. Where separate notice or consent is required for sharing, transfer or cross-border provision, we will follow the applicable process.
+
+7. Retention and security
+We keep information for the shortest reasonable period needed for the stated purposes, subject to legal retention duties and what is necessary to handle disputes or security incidents. You may request deletion of cloud personal data by email below. After identity verification, we will delete or anonymize data as required by law, or explain why immediate deletion is unavailable.
+The app communicates with the cloud over HTTPS and uses access control, permission management and other reasonable safeguards. No network or device environment can be guaranteed completely secure; please protect your phone and app data.
+
+8. Your rights
+You can view history, achievements, leaderboards and profile details in the app, and edit available profile fields such as nickname and language. To request access, a copy, correction, deletion, withdrawal of applicable consent or other rights available under law, email us below. We may verify identity first. Withdrawal does not affect lawful processing before withdrawal but may limit related functions.
+
+9. Minors
+Minors should use the service with a parent or guardian's guidance and consent, and train at an appropriate intensity. If a guardian believes a child's information was processed without appropriate authorization, please contact us.
+
+10. Policy updates
+If features or information handling materially change, we will update this Policy and notify you through the app, release notes or another reasonable method. Where renewed consent is required, we will seek it separately.
+
+11. Contact
+Operator: Shaoxing Weimai Technology Co., Ltd.
+Email: zclei@vip.sina.com
+Use this address for questions, complaints or privacy-rights requests.

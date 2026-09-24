@@ -1,0 +1,44 @@
+Accord utilisateur TempoStrike
+Version : V2.1
+Date d'entrée en vigueur : 2026-09-17
+
+1. Champ d'application
+Le présent accord régit l'application TempoStrike ainsi que la connexion à la cible murale de boxe SENWALL#, les historiques d'entraînement, les succès, les classements, le profil et les services audio proposés par Shaoxing Weimai Technology Co., Ltd. Veuillez également lire la Politique de confidentialité de TempoStrike. L'utilisation du service est soumise à cet accord ; si vous le refusez, cessez de l'utiliser. Les traitements nécessitant un consentement distinct feront l'objet d'une demande séparée.
+
+2. Fonctions et dépendances
+TempoStrike se connecte à une cible SENWALL# à six zones et affiche le nombre cumulé de coups, le score de puissance relative, la zone touchée et la batterie. L'application propose l'entraînement en direct et par rounds, les modes libre et suivi du rythme, un tempo de 180 à 400 BPM, une rythmique et une musique adaptées au BPM, des rapports, des succès et des classements. Certains sons sont générés ou intégrés à l'application.
+La connexion, la synchronisation et les ressources dépendent de la cible, du Bluetooth du téléphone, des autorisations système, du réseau et du service cloud. Les différences entre appareils peuvent modifier la disponibilité, la réactivité et les données.
+
+3. Identifiant utilisateur et profil
+Lors de la première utilisation, l'application génère automatiquement un identifiant utilisateur et un identifiant d'installation pour associer les entraînements cloud. Protégez votre téléphone et les données de l'application. Vous pouvez définir un pseudo, une langue, une région et un avatar. La photo d'avatar choisie s'affiche localement ; la couleur de l'avatar et d'autres champs du profil peuvent être synchronisés. N'usurpez pas l'identité d'autrui et ne fournissez pas de contenu portant atteinte à ses droits.
+
+4. Sécurité de l'entraînement
+Avant de commencer, vérifiez que la cible est solidement fixée et que l'espace est dégagé. Échauffez-vous et protégez vos mains de façon adaptée. Choisissez une intensité compatible avec votre état physique. Le réglage de 180 à 400 BPM commande le tempo sonore ; il ne constitue pas une fréquence de frappe à atteindre. En cas de douleur thoracique, vertige, blessure ou autre malaise, arrêtez-vous immédiatement et demandez conseil à un professionnel si nécessaire. Les mineurs doivent s'entraîner sous la supervision d'un responsable légal.
+
+5. Données Bluetooth et estimations
+L'application utilise les données Bluetooth de la cible pour afficher les coups, les zones 1 à 6 et le score de puissance relative. Le capteur, la fixation, le signal et la technique peuvent influencer les résultats. Le score est la valeur transmise par le matériel ; il n'est pas étalonné par un appareil de mesure standard et n'a pas d'unité physique telle que kg, kgf ou N. Il sert uniquement à suivre des tendances dans des conditions comparables.
+Les calories, la graisse équivalente, la précision rythmique, les enchaînements et les autres statistiques sont des retours d'exercice ou des estimations, et non des diagnostics médicaux, évaluations de rééducation, conseils nutritionnels ou jugements officiels de compétition.
+
+6. Synchronisation, classements et partage
+Après chaque round, l'application tente d'envoyer un résumé au cloud TempoStrike. Sans réseau ou en cas d'échec, elle le place dans une file locale et réessaie lorsque le réseau est disponible. Le délai dépend du réseau et du service ; désinstaller ou effacer les données de l'application peut faire perdre les rapports non envoyés.
+Les classements peuvent montrer aux autres utilisateurs votre pseudo, un identifiant utilisateur masqué, la région, le rang et le résultat. Lorsque vous partagez un texte ou une affiche, l'application choisie reçoit ce contenu. Tenez compte de cette visibilité avant de choisir votre pseudo ou de partager.
+
+7. Règles d'utilisation
+Il est interdit de falsifier des résultats, de fausser les classements, d'attaquer ou d'abuser des interfaces du service, de diffuser du contenu illicite ou contrefaisant, ou de copier, extraire ou exploiter commercialement l'application et ses contenus sans autorisation, sauf lorsque la loi le permet expressément. En cas d'abus ou d'atteinte manifeste aux droits, nous pouvons limiter raisonnablement des fonctions ou l'affichage au classement ; vous pouvez nous contacter pour contester cette décision.
+
+8. Contenu et propriété intellectuelle
+La marque TempoStrike, l'interface, le code, les graphismes, badges, textes, effets sonores, rythmes synthétisés et musiques intégrées appartiennent à notre société ou à leurs titulaires légitimes. Vous ne recevez qu'une autorisation limitée à l'usage personnel du service, sans droit de propriété, de redistribution ou d'exploitation commerciale autonome.
+
+9. Modifications et interruptions
+La maintenance, les mises à jour, la sécurité, le réseau ou la compatibilité matérielle peuvent entraîner la modification ou l'interruption temporaire d'une partie du service. Nous nous efforcerons raisonnablement d'en limiter les effets. Les changements importants du service ou de cet accord seront annoncés dans l'application, les notes de version ou par un autre moyen approprié.
+
+10. Responsabilité
+Respectez les instructions de fixation et les consignes de sécurité. La responsabilité liée à une mauvaise installation, à un entraînement excessif, à une panne Bluetooth ou réseau et aux situations similaires est appréciée selon les faits et la loi applicable. Cet accord n'écarte ni ne limite les droits des consommateurs ou les droits liés aux dommages corporels qui ne peuvent être exclus légalement.
+
+11. Droit applicable et litiges
+Cet accord est régi par le droit de la République populaire de Chine, sans préjudice des protections impératives des consommateurs et des données personnelles applicables dans votre lieu de résidence. Les parties essaieront d'abord de résoudre tout litige à l'amiable ; à défaut, elles pourront saisir une juridiction compétente.
+
+12. Contact
+Responsable : Shaoxing Weimai Technology Co., Ltd.
+E-mail : zclei@vip.sina.com
+Contactez-nous pour toute question sur le service, réclamation ou contestation d'une restriction.
