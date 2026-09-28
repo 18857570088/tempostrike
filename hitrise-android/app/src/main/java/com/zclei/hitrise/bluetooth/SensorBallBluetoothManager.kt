@@ -1,4 +1,4 @@
-﻿package com.zclei.hitrise.bluetooth
+package com.zclei.hitrise.bluetooth
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
@@ -20,6 +20,7 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import java.io.IOException
 import java.util.UUID
@@ -107,6 +108,72 @@ class SensorBallBluetoothManager(
     private var classicReadLoopActive = false
     @Volatile
     private var suppressNextBleDisconnectCallback = false
+    @Volatile
+    private var highPerformanceConnectionPreferred = false
+    @Volatile
+    private var lastHighPriorityRequestElapsedMs = 0L
+    @Volatile
+    private var lastTelemetryNotificationElapsedMs = 0L
+    private var slowTelemetryIntervalsInRow = 0
+    private val highPriorityCorrectionRunnable =
+        Runnable {
+            val targetGatt = gatt
+            if (highPerformanceConnectionPreferred && targetGatt != null) {
+                requestHighConnectionPriority(targetGatt)
+            }
+        }
+
+    @SuppressLint("MissingPermission")
+    fun setHighPerformanceConnectionEnabled(enabled: Boolean) {
+        highPerformanceConnectionPreferred = enabled
+        lastTelemetryNotificationElapsedMs = 0L
+        slowTelemetryIntervalsInRow = 0
+        mainHandler.removeCallbacks(highPriorityCorrectionRunnable)
+        val targetGatt = gatt ?: return
+        if (enabled) {
+            requestHighConnectionPriority(targetGatt)
+        } else {
+            runCatching { targetGatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_BALANCED) }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun requestHighConnectionPriority(targetGatt: BluetoothGatt): Boolean {
+        val requested =
+            runCatching {
+                targetGatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
+            }.getOrDefault(false)
+        if (requested) {
+            lastHighPriorityRequestElapsedMs = SystemClock.elapsedRealtime()
+        }
+        return requested
+    }
+
+    private fun observeTelemetryArrival() {
+        val now = SystemClock.elapsedRealtime()
+        val previous = lastTelemetryNotificationElapsedMs
+        lastTelemetryNotificationElapsedMs = now
+        if (!highPerformanceConnectionPreferred || previous == 0L) {
+            slowTelemetryIntervalsInRow = 0
+            return
+        }
+        val gapMs = now - previous
+        slowTelemetryIntervalsInRow =
+            if (gapMs in SLOW_TELEMETRY_GAP_MS..MAX_CORRECTABLE_TELEMETRY_GAP_MS) {
+                slowTelemetryIntervalsInRow + 1
+            } else {
+                0
+            }
+        if (slowTelemetryIntervalsInRow < SLOW_TELEMETRY_INTERVALS_REQUIRED) {
+            return
+        }
+        slowTelemetryIntervalsInRow = 0
+        val sinceLastRequestMs = now - lastHighPriorityRequestElapsedMs
+        val delayMs = (HIGH_PRIORITY_CORRECTION_DEBOUNCE_MS - sinceLastRequestMs).coerceAtLeast(0L)
+        Log.w(TAG, "slow BLE telemetry gap=${gapMs}ms during training; correcting in ${delayMs}ms")
+        mainHandler.removeCallbacks(highPriorityCorrectionRunnable)
+        mainHandler.postDelayed(highPriorityCorrectionRunnable, delayMs)
+    }
 
     private val classicReceiver =
         object : BroadcastReceiver() {
@@ -528,7 +595,7 @@ class SensorBallBluetoothManager(
                             handleBleDisconnected(gatt, status, "BLE connected with non-success status")
                             return
                         }
-                        runCatching { gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH) }
+                        requestHighConnectionPriority(gatt)
                         callback.onStatus("已连接，正在发现服务...")
                         mainHandler.postDelayed(
                             {
@@ -545,6 +612,7 @@ class SensorBallBluetoothManager(
                     }
                 }
             }
+
 
             @SuppressLint("MissingPermission")
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
@@ -610,7 +678,9 @@ class SensorBallBluetoothManager(
                     return
                 }
                 val value = characteristic.value
-                parseTelemetryPackets(value).forEach(callback::onTelemetry)
+                val packets = parseTelemetryPackets(value)
+                if (packets.isNotEmpty()) observeTelemetryArrival()
+                packets.forEach(callback::onTelemetry)
             }
 
             override fun onCharacteristicChanged(
@@ -621,7 +691,9 @@ class SensorBallBluetoothManager(
                 if (this@SensorBallBluetoothManager.gatt !== gatt) {
                     return
                 }
-                parseTelemetryPackets(value).forEach(callback::onTelemetry)
+                val packets = parseTelemetryPackets(value)
+                if (packets.isNotEmpty()) observeTelemetryArrival()
+                packets.forEach(callback::onTelemetry)
             }
 
             override fun onCharacteristicWrite(
@@ -824,10 +896,12 @@ class SensorBallBluetoothManager(
                 forceLow = forceLow,
                 relativePowerScore = relativePowerScore,
             )
-        Log.d(
-            TAG,
-            "telemetry packet=${telemetry.packetIndex} data1Battery=${telemetry.batteryRaw} data2Charging=${telemetry.chargingFlagRaw} data3GyroCount=${telemetry.gyroHitCount} data4GyroForce=${telemetry.gyroForceRaw} data5PressureCount=${telemetry.hitCount} data6ImpactLocation=${telemetry.impactLocationRaw} data7ForceHigh=$forceHigh data8ForceLow=$forceLow relativePowerScore=$relativePowerScore",
-        )
+        if (Log.isLoggable(TAG, Log.VERBOSE)) {
+            Log.v(
+                TAG,
+                "telemetry packet=${telemetry.packetIndex} data1Battery=${telemetry.batteryRaw} data2Charging=${telemetry.chargingFlagRaw} data3GyroCount=${telemetry.gyroHitCount} data4GyroForce=${telemetry.gyroForceRaw} data5PressureCount=${telemetry.hitCount} data6ImpactLocation=${telemetry.impactLocationRaw} data7ForceHigh=$forceHigh data8ForceLow=$forceLow relativePowerScore=$relativePowerScore",
+            )
+        }
         return telemetry
     }
 
@@ -1035,6 +1109,10 @@ class SensorBallBluetoothManager(
         const val TELEMETRY_PACKET_SIZE = 14
         const val BLE_SERVICE_DISCOVERY_DELAY_MS = 350L
         const val BLE_WRITE_CALLBACK_TIMEOUT_MS = 900L
+        const val SLOW_TELEMETRY_GAP_MS = 90L
+        const val MAX_CORRECTABLE_TELEMETRY_GAP_MS = 600L
+        const val SLOW_TELEMETRY_INTERVALS_REQUIRED = 2
+        const val HIGH_PRIORITY_CORRECTION_DEBOUNCE_MS = 750L
         val DEVICE_NAME_REGEX = Regex("SENWALL#[A-Za-z0-9_-]+", RegexOption.IGNORE_CASE)
         val SPP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805f9b34fb")
         val CLIENT_CONFIG_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")

@@ -22,8 +22,6 @@ internal object TrainingMusicSynth {
         doubleArrayOf(392.00, 523.25, 659.25, 523.25),
         doubleArrayOf(392.00, 493.88, 587.33, 493.88),
     )
-    private val chordBass = doubleArrayOf(55.00, 43.65, 65.41, 49.00)
-    private val grooveBass = doubleArrayOf(55.00, 55.00, 65.40, 73.40)
 
     enum class Backing { None, Adaptive, Champion }
 
@@ -68,13 +66,6 @@ internal object TrainingMusicSynth {
             var sample = 0.0
 
             if (includeGroove) {
-                val kickWindow = minOf(0.18, beatSeconds * 0.8)
-                val kickEnv = if (beatElapsed < kickWindow) {
-                    val x = 1.0 - beatElapsed / kickWindow
-                    x * x
-                } else 0.0
-                val kickFreq = 78.0 - 34.0 * (beatElapsed / kickWindow).coerceIn(0.0, 1.0)
-                sample += sin(2.0 * PI * kickFreq * t) * kickEnv * 0.55
 
                 val snareWindow = minOf(0.13, beatSeconds * 0.6)
                 if ((barBeat == 1 || barBeat == 3) && beatElapsed < snareWindow) {
@@ -89,9 +80,7 @@ internal object TrainingMusicSynth {
                     val hatEnv = 1.0 - halfBeatElapsed / hatWindow
                     sample += sin(2.0 * PI * 5_200.0 * t) * hatEnv * 0.13
                 }
-                val bassEnv = (1.0 - beatElapsed / beatSeconds).coerceIn(0.0, 1.0)
-                val bassNote = if (backing == Backing.Adaptive) chordBass[barIndex] else grooveBass[barBeat]
-                sample += sin(2.0 * PI * bassNote * t) * bassEnv * 0.16
+
                 val leadWindow = minOf(0.16, beatSeconds * 0.7)
                 if (barBeat == 3 && beatElapsed < leadWindow) {
                     val leadEnv = 1.0 - beatElapsed / leadWindow

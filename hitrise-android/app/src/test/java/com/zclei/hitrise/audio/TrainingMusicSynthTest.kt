@@ -23,7 +23,7 @@ class TrainingMusicSynthTest {
     }
 
     @Test
-    fun audibleKickFollowsSelectedBpmAcrossRange() {
+    fun audibleTreblePulseFollowsSelectedBpmAcrossRange() {
         for (bpm in intArrayOf(180, 240, 300, 350, 400)) {
             val beatMs = 60_000.0 / bpm
             val samples = ShortArray(((beatMs * 5 + 100) * TrainingMusicSynth.SAMPLE_RATE / 1_000).toInt())
@@ -33,9 +33,9 @@ class TrainingMusicSynthTest {
             )
             for (beat in 1..4) {
                 val target = beat * beatMs
-                val onBeat = rms(samples, target + 35, target + 75)
+                val onBeat = rms(samples, target + 2, target + 25)
                 val beforeBeat = rms(samples, target - 35, target - 10)
-                assertTrue("Kick did not follow $bpm BPM at beat $beat", onBeat > beforeBeat * 1.3)
+                assertTrue("Treble pulse did not follow $bpm BPM at beat $beat", onBeat > beforeBeat * 1.3)
             }
         }
     }

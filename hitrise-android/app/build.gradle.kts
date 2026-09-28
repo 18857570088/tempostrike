@@ -16,7 +16,7 @@ android {
         buildConfigField(
             "String",
             "TEMPOSTRIKE_API_BASE_URL",
-            "\"https://hitrise.86086.cn/tempostrike\"",
+            "\"https://tempostrike.wavemill.cn/tempostrike\"",
         )
     }
 

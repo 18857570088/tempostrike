@@ -7,8 +7,8 @@ FastAPI service for user profiles, training sessions, achievements, and leaderbo
 - MySQL database: `tempostrike` (`sql/schema.sql`)
 - MySQL application user: `tempostrike_app`, with DML grants only on `tempostrike.*`
 - Docker container: `tempostrike-auth`, internal port `8016`, network `gitlab-net`
-- HTTPS endpoint: `https://hitrise.86086.cn/tempostrike/`
-- Nginx route: `deploy/nginx/tempostrike-location.conf` inside the existing `hitrise.86086.cn` server block
+- HTTPS endpoint: `https://tempostrike.wavemill.cn/tempostrike/`
+- Nginx route: `deploy/nginx/tempostrike-location.conf` inside the `tempostrike.wavemill.cn` server block
 - Runtime data: `/home/ubuntu/tempostrike/uploads`
 - Protected runtime secrets: `/home/ubuntu/tempostrike/tempostrike.env` (mode `0600`)
 
@@ -18,4 +18,4 @@ The Nginx `/hitrise/` route and HITRISE container/database remain separate. The 
 
 ## Verification
 
-Check both `https://hitrise.86086.cn/tempostrike/health` and `https://hitrise.86086.cn/hitrise/health` after changes. The responses should name `TempoStrike` and `hitrise-auth`, respectively.
+Check both `https://tempostrike.wavemill.cn/tempostrike/health` and `https://hitrise.86086.cn/hitrise/health` after changes. The responses should name `TempoStrike` and `hitrise-auth`, respectively.

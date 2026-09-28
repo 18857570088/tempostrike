@@ -28,6 +28,8 @@ import android.graphics.Typeface
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
 import android.speech.tts.TextToSpeech
@@ -87,10 +89,9 @@ import com.zclei.hitrise.bluetooth.SensorBallBluetoothManager
 import com.zclei.hitrise.bluetooth.SensorBallDevice
 import com.zclei.hitrise.bluetooth.SensorBallTelemetry
 import com.zclei.hitrise.bluetooth.SensorBallTransport
+import com.zclei.hitrise.bluetooth.pressureCountDelta
 import com.zclei.hitrise.model.AppLanguage
 import com.zclei.hitrise.model.BeatScore
-import com.zclei.hitrise.model.ComboEvent
-import com.zclei.hitrise.model.PunchEvent
 import com.zclei.hitrise.model.RoundConfig
 import com.zclei.hitrise.model.RhythmSummary
 import com.zclei.hitrise.model.TrainingMode
@@ -263,6 +264,9 @@ class MainActivity : AppCompatActivity() {
     private var tts: TextToSpeech? = null
     private var toneGenerator: ToneGenerator? = null
     private var immersiveAudioJob: Job? = null
+    private var championMusicPreloadJob: Job? = null
+    private val championMusicSamplesLock = Any()
+    @Volatile private var championMusicSamples: ShortArray? = null
     @Volatile private var immersiveAudioTrack: AudioTrack? = null
     @Volatile private var rhythmAudioStartElapsedMs: Long = 0L
     @Volatile private var rhythmAudioPhraseStartFrame: Long = 0L
@@ -287,6 +291,7 @@ class MainActivity : AppCompatActivity() {
     private var cloudStatusFallbackMessage: String? = null
     private var cloudStatusColor: Int = Color.parseColor("#FFD060")
     private var trainingBluetoothReconnectJob: Job? = null
+    private var trainingReconnectCounterBaselinePending: Boolean = false
     private var bluetoothAutoConnectInProgress: Boolean = false
     private var bluetoothLastAutoConnectStartedMs: Long = 0L
     private var pendingAvatarSelection: ((Uri?) -> Unit)? = null
@@ -307,9 +312,18 @@ class MainActivity : AppCompatActivity() {
     private val trainingPunchTimesMs: ArrayDeque<Long> = ArrayDeque()
     private val trainingRhythmPunchTimesMs: ArrayDeque<Long> = ArrayDeque()
     private val trainingForceSamples: ArrayDeque<Float> = ArrayDeque()
-    private val trainingPunchEvents = mutableListOf<PunchEvent>()
-    private val trainingComboEvents = mutableListOf<ComboEvent>()
+    private var trainingPositiveForceTotal = 0.0
+    private var trainingPositiveForceCount = 0
+    private var trainingMinForceN = Float.MAX_VALUE
+    private val trainingBurstTimesMs: ArrayDeque<Long> = ArrayDeque()
+    private var trainingBestBurstCount = 0
+    private var lastComboChipsRefreshElapsedMs = 0L
+    private var lastRealtimeHitFeedbackElapsedMs = 0L
+    private var lastPunchSoundElapsedMs = 0L
+    private var lastPressureDebugLogElapsedMs = 0L
+    private var lastDashboardStatsRefreshElapsedMs = 0L
     private val trainingComboCounts = linkedMapOf<String, Int>()
+    private val dashboardComboChipViews = linkedMapOf<String, TextView>()
     private var trainingLastCoachCueKey: String? = null
     private var trainingLastCoachCueElapsedMs: Long = -30_000L
     private var trainingLastCoachSpeechElapsedMs: Long = -120_000L
@@ -483,6 +497,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pageAchievementsContainer: LinearLayout
     private lateinit var pageLeaderboardContainer: LinearLayout
     private lateinit var pageProfileContainer: LinearLayout
+    private val telemetryUiHandler = Handler(Looper.getMainLooper())
+    private val telemetryUiLock = Any()
+    private var pendingBluetoothTelemetry: SensorBallTelemetry? = null
+    private var bluetoothTelemetryDrainPosted = false
+
     private val prefs by lazy {
         getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
     }
@@ -561,6 +580,9 @@ class MainActivity : AppCompatActivity() {
 
                 override fun onDisconnected() {
                     runOnUiThread {
+                        if (trainingJob?.isActive == true) {
+                            trainingReconnectCounterBaselinePending = true
+                        }
                         bluetoothConnectedDevice = null
                         selectedBluetoothDevice = null
                         bluetoothDevices.clear()
@@ -583,31 +605,76 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 override fun onTelemetry(telemetry: SensorBallTelemetry) {
-                    runOnUiThread {
-                        var forceSettingsRefresh = false
-                        telemetry.batteryRaw.takeIf { it in 0..102 }?.let { batteryRaw ->
-                            val chargingFlagRaw = telemetry.chargingFlagRaw.takeIf { it in 0..1 }
-                            if (trainingJob?.isActive == true) {
-                                deferredTrainingBatteryRaw = batteryRaw
-                                deferredTrainingChargingFlagRaw = chargingFlagRaw
-                            } else {
-                                forceSettingsRefresh =
-                                    bluetoothBatteryRaw != batteryRaw ||
-                                        bluetoothChargingFlagRaw != chargingFlagRaw
-                                bluetoothBatteryRaw = batteryRaw
-                                bluetoothChargingFlagRaw = chargingFlagRaw
-                                bluetoothBatteryText = bluetoothBatteryDisplayText(batteryRaw, chargingFlagRaw)
-                            }
-                        }
-                        bluetoothPeakText = telemetry.relativePowerScore.toString()
-                        updateBluetoothPressureHitCount(telemetry.hitCount, telemetry.impactLocationRaw, telemetry.relativePowerScore)
-                        bluetoothStatusMessage = bluetoothPacketReceivedText(telemetry.packetIndex)
-                        updateBluetoothSettingsViewsFromTelemetry(force = forceSettingsRefresh)
-                    }
+                    enqueueBluetoothTelemetry(telemetry)
                 }
             },
         )
     }
+    private fun enqueueBluetoothTelemetry(telemetry: SensorBallTelemetry) {
+        val shouldPost =
+            synchronized(telemetryUiLock) {
+                pendingBluetoothTelemetry = telemetry
+                if (bluetoothTelemetryDrainPosted) {
+                    false
+                } else {
+                    bluetoothTelemetryDrainPosted = true
+                    true
+                }
+            }
+        if (shouldPost) {
+            telemetryUiHandler.postAtFrontOfQueue { drainBluetoothTelemetryOnUi() }
+        }
+    }
+
+    private fun drainBluetoothTelemetryOnUi() {
+        val telemetry =
+            synchronized(telemetryUiLock) {
+                pendingBluetoothTelemetry.also { pendingBluetoothTelemetry = null }
+            }
+        try {
+            telemetry?.let(::processBluetoothTelemetryOnMain)
+        } finally {
+            val shouldPostAgain =
+                synchronized(telemetryUiLock) {
+                    if (pendingBluetoothTelemetry != null) {
+                        true
+                    } else {
+                        bluetoothTelemetryDrainPosted = false
+                        false
+                    }
+                }
+            if (shouldPostAgain) {
+                telemetryUiHandler.postAtFrontOfQueue { drainBluetoothTelemetryOnUi() }
+            }
+        }
+    }
+
+    private fun processBluetoothTelemetryOnMain(telemetry: SensorBallTelemetry) {
+        var forceSettingsRefresh = false
+        telemetry.batteryRaw.takeIf { it in 0..102 }?.let { batteryRaw ->
+            val chargingFlagRaw = telemetry.chargingFlagRaw.takeIf { it in 0..1 }
+            if (trainingJob?.isActive == true) {
+                deferredTrainingBatteryRaw = batteryRaw
+                deferredTrainingChargingFlagRaw = chargingFlagRaw
+            } else {
+                forceSettingsRefresh =
+                    bluetoothBatteryRaw != batteryRaw ||
+                        bluetoothChargingFlagRaw != chargingFlagRaw
+                bluetoothBatteryRaw = batteryRaw
+                bluetoothChargingFlagRaw = chargingFlagRaw
+                bluetoothBatteryText = bluetoothBatteryDisplayText(batteryRaw, chargingFlagRaw)
+            }
+        }
+        bluetoothPeakText = telemetry.relativePowerScore.toString()
+        updateBluetoothPressureHitCount(
+            telemetry.hitCount,
+            telemetry.impactLocationRaw,
+            telemetry.relativePowerScore,
+        )
+        bluetoothStatusMessage = bluetoothPacketReceivedText(telemetry.packetIndex)
+        updateBluetoothSettingsViewsFromTelemetry(force = forceSettingsRefresh)
+    }
+
     private val bluetoothDevices = mutableListOf<SensorBallDevice>()
     private var selectedBluetoothDevice: SensorBallDevice? = null
     private var bluetoothConnectedDevice: SensorBallDevice? = null
@@ -685,7 +752,10 @@ class MainActivity : AppCompatActivity() {
         refreshCloudData(forceLeaderboard = true)
         PendingTrainingUploads.schedule(this)
         startLaunchSplash()
-        contentRootView.post { autoConnectLastBluetoothDevice() }
+        contentRootView.post {
+            prewarmTrainingAudioResources()
+            autoConnectLastBluetoothDevice()
+        }
         contentRootView.postDelayed({ maybeShowBluetoothFirstUseGuide() }, 1200L)
     }
 
@@ -2145,6 +2215,8 @@ class MainActivity : AppCompatActivity() {
             renderError(bluetoothConnectFirstText())
             return
         }
+        sensorBallBluetooth.setHighPerformanceConnectionEnabled(true)
+        prewarmTrainingAudioResources()
         dismissCelebrationBeforeTraining()
         val sessionMode = selectedMode
         val sessionPlayMode = selectedPlayMode
@@ -2158,16 +2230,21 @@ class MainActivity : AppCompatActivity() {
         bluetoothTrainingCount = 0
         bluetoothTrainingMode = null
         trainingAcceptingPunches = false
+        trainingReconnectCounterBaselinePending = false
         currentTrainingRound = 1
         currentTrainingRoundCount = sessionSetup.rounds
         currentRoundDurationMs = sessionSetup.workSeconds * 1_000L
         currentRoundRemainingMs = currentRoundDurationMs
         trainingResting = false
-        lastBluetoothPressureRawCount = null
+        // Keep the latest data5 value as the session offset. The pressure counter is
+        // cumulative on the wall target and must not be forced back to zero locally.
         lastImpactLocationRaw = null
         pendingImpactFlashUntilMs = 0L
         lastPressureHitElapsedMs = 0L
         bluetoothHitCount = 0
+        if (BuildConfig.DEBUG) {
+            android.util.Log.i("TempoStrikeCount", "start requested data5Baseline=$lastBluetoothPressureRawCount")
+        }
         if (::wallTargetView.isInitialized) wallTargetView.resetMetrics()
         resetRealtimeTrainingSession(sessionMode)
         countView.text = "0"
@@ -2183,7 +2260,9 @@ class MainActivity : AppCompatActivity() {
         trainingJob =
             lifecycleScope.launch(Dispatchers.Main) {
                 try {
-                    runPreTrainingCueSequence(currentRoundDurationMs)
+                    // Start the device counter before the visible 3-2-1 countdown. This gives
+                    // the telemetry stream time to establish its raw-count baseline, so the first
+                    // punches after GO are measured instead of being consumed as initialization.
                     if (!waitForInitialTrainingCountingReady()) {
                         throw IllegalStateException(
                             localText(
@@ -2194,8 +2273,10 @@ class MainActivity : AppCompatActivity() {
                             ),
                         )
                     }
-                    clearDashboardCenterCue()
+                    runPreTrainingCueSequence(currentRoundDurationMs)
                     trainingStartedElapsedMs = SystemClock.elapsedRealtime()
+                    trainingAcceptingPunches = true
+                    bluetoothTrainingMode = sessionMode
                     updateDashboardViews(currentRoundRemainingMs)
                     startImmersiveTrainingAudio()
                     pushAiCoachCue(
@@ -2215,6 +2296,14 @@ class MainActivity : AppCompatActivity() {
                                 "สาเหตุ: เริ่มรอบ | โค้ช AI สด",
                             ),
                         speak = false,
+                    )
+                    countdownView.postDelayed(
+                        {
+                            if (trainingJob?.isActive == true && trainingAcceptingPunches) {
+                                clearDashboardCenterCue()
+                            }
+                        },
+                        650L,
                     )
                     runConfiguredTrainingRounds(sessionMode, sessionSetup)
                     val report =
@@ -2261,12 +2350,14 @@ class MainActivity : AppCompatActivity() {
                     stopImmersiveTrainingAudio()
                     renderError(t.message ?: tr("training_failed"))
                 } finally {
+                    sensorBallBluetooth.setHighPerformanceConnectionEnabled(false)
                     stopImmersiveTrainingAudio()
                     trainingBluetoothReconnectJob?.cancel()
                     trainingBluetoothReconnectJob = null
                     trainingJob = null
                     bluetoothTrainingMode = null
                     trainingAcceptingPunches = false
+                    trainingReconnectCounterBaselinePending = false
                     trainingResting = false
                     applyDeferredTrainingBatteryStatus()
                     updateBluetoothSettingsViews()
@@ -2464,7 +2555,8 @@ class MainActivity : AppCompatActivity() {
         )
         goSpoken = true
         countdownView.announceForAccessibility(displayGoLabel())
-        speakCueAndWait(displayGoCue(), timeoutMs = 900L)
+        // Do not wait for GO speech to finish: users start punching as soon as GO appears.
+        speakCue(displayGoCue())
     }
 
     private suspend fun speakCueAndWait(text: String, timeoutMs: Long) {
@@ -2539,8 +2631,7 @@ class MainActivity : AppCompatActivity() {
     ): TrainingReport {
         val safeCompletedRounds = completedRounds.coerceIn(1, setup.rounds.coerceAtLeast(1))
         val durationSeconds = setup.workSeconds * safeCompletedRounds
-        val forceSamples = trainingPunchEvents.map { it.forceN.toFloat() }.filter { it > 0f }
-        val avgForceN = forceSamples.average().takeIf { !it.isNaN() }?.toFloat() ?: 0f
+        val avgForceN = currentAverageTrainingForceN()
         val calories = caloriesForTraining(totalHits, durationSeconds, avgForceN)
         val rhythmSummary = RhythmSummary(trainingPerfectBeats, trainingGoodBeats, trainingMissBeats)
         return TrainingReport(
@@ -2620,9 +2711,17 @@ class MainActivity : AppCompatActivity() {
         trainingPunchTimesMs.clear()
         trainingRhythmPunchTimesMs.clear()
         trainingForceSamples.clear()
-        trainingPunchEvents.clear()
+        trainingPositiveForceTotal = 0.0
+        trainingPositiveForceCount = 0
+        trainingMinForceN = Float.MAX_VALUE
+        trainingBurstTimesMs.clear()
+        trainingBestBurstCount = 0
+        lastComboChipsRefreshElapsedMs = 0L
+        lastRealtimeHitFeedbackElapsedMs = 0L
+        lastPunchSoundElapsedMs = 0L
+        lastPressureDebugLogElapsedMs = 0L
+        lastDashboardStatsRefreshElapsedMs = 0L
         trainingRoundReports.clear()
-        trainingComboEvents.clear()
         trainingComboCounts.clear()
         trainingLastCoachCueKey = null
         trainingLastCoachCueElapsedMs = -30_000L
@@ -2632,12 +2731,12 @@ class MainActivity : AppCompatActivity() {
             waveformView.reset()
         }
         hideCompletedForceStats()
-        updateComboChips()
+        updateComboChips(force = true)
         resetAiCoachRealtimeCard()
         updateDashboardViews(mode.durationSeconds * 1_000L)
     }
 
-    private fun recordTrainingPunch() {
+    private fun recordTrainingPunch(emitRealtimeFeedback: Boolean = true) {
         val now = SystemClock.elapsedRealtime()
         val elapsedMs = if (trainingStartedElapsedMs > 0L) now - trainingStartedElapsedMs else 0L
         val force = (bluetoothPeakText.toFloatOrNull() ?: 0f).coerceAtLeast(0f)
@@ -2646,25 +2745,32 @@ class MainActivity : AppCompatActivity() {
         if (beatResult != null) trainingRhythmPunchTimesMs.addLast(rhythmElapsedMs)
         bluetoothTrainingCount += 1
         trainingPeakForceN = max(trainingPeakForceN, force)
+        if (force > 0f) {
+            trainingPositiveForceTotal += force.toDouble()
+            trainingPositiveForceCount += 1
+            trainingMinForceN = minOf(trainingMinForceN, force)
+        }
+        trainingBurstTimesMs.addLast(now)
+        while (trainingBurstTimesMs.isNotEmpty() && now - trainingBurstTimesMs.first > 3_000L) {
+            trainingBurstTimesMs.removeFirst()
+        }
+        trainingBestBurstCount = max(trainingBestBurstCount, trainingBurstTimesMs.size)
         trainingPunchTimesMs.addLast(now)
         trainingForceSamples.addLast(force)
         while (trainingPunchTimesMs.size > 12) trainingPunchTimesMs.removeFirst()
         while (trainingForceSamples.size > 12) trainingForceSamples.removeFirst()
-        trainingPunchEvents +=
-            PunchEvent(
-                id = UUID.randomUUID().toString(),
-                sessionId = trainingSessionId,
-                forceN = force.toDouble(),
-                deviceTs = elapsedMs,
-                systemTs = System.currentTimeMillis(),
-                beatOffsetMs = beatResult?.first,
-                beatScore = beatResult?.second,
-        )
         trainingCurrentBpm = calculateRecentBpm()
-        val comboType = detectCombo(now, force)
-        waveformView.addForce(force)
-        playPunchSound(force)
-        evaluateAiCoachCue(elapsedMs, force, comboType)
+        val comboType = detectCombo(force)
+        if (emitRealtimeFeedback) {
+            waveformView.addForce(force)
+            if (now - lastPunchSoundElapsedMs >= PUNCH_SOUND_MIN_INTERVAL_MS) {
+                lastPunchSoundElapsedMs = now
+                lifecycleScope.launch(Dispatchers.Default) {
+                    playPunchSound(force)
+                }
+            }
+            evaluateAiCoachCue(elapsedMs, force, comboType)
+        }
     }
 
     private fun evaluateBeatForPunch(rhythmElapsedMs: Long): Pair<Int, BeatScore>? {
@@ -2700,6 +2806,12 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val start = max(0, trainingLastEvaluatedBeat + 1)
+        val oldestRelevantPunchMs = ((start * intervalMs) - goodWindowMs).roundToInt().toLong()
+        while (trainingRhythmPunchTimesMs.isNotEmpty() &&
+            trainingRhythmPunchTimesMs.first() < oldestRelevantPunchMs
+        ) {
+            trainingRhythmPunchTimesMs.removeFirst()
+        }
         for (beat in start..completedBeat) {
             val beatElapsed = (beat * intervalMs).roundToInt().toLong()
             val hasNearbyPunch =
@@ -2717,59 +2829,56 @@ class MainActivity : AppCompatActivity() {
         if (trainingPunchTimesMs.size < 2) {
             return 0f
         }
-        val times = trainingPunchTimesMs.toList().takeLast(5)
-        if (times.size < 2) {
-            return 0f
+        val iterator = trainingPunchTimesMs.descendingIterator()
+        var newer = iterator.next()
+        var totalIntervalMs = 0L
+        var intervalCount = 0
+        while (iterator.hasNext() && intervalCount < 4) {
+            val older = iterator.next()
+            totalIntervalMs += (newer - older).coerceAtLeast(1L)
+            intervalCount += 1
+            newer = older
         }
-        val intervals = times.zipWithNext { left, right -> (right - left).coerceAtLeast(1L) }
-        val averageInterval = intervals.average().toFloat()
+        if (intervalCount == 0) return 0f
+        val averageInterval = totalIntervalMs.toFloat() / intervalCount
         return 60_000f / averageInterval
     }
 
-    private fun detectCombo(now: Long, force: Float): String {
-        val times = trainingPunchTimesMs.toList()
-        val forces = trainingForceSamples.toList()
+    private fun detectCombo(force: Float): String {
+        val timeIterator = trainingPunchTimesMs.descendingIterator()
+        val latestTime = timeIterator.next()
+        val previousTime = if (timeIterator.hasNext()) timeIterator.next() else null
+        val thirdLatestTime = if (timeIterator.hasNext()) timeIterator.next() else null
+        val forceIterator = trainingForceSamples.descendingIterator()
+        var lastThreeForcesStrong = true
+        var forceSampleCount = 0
+        while (forceIterator.hasNext() && forceSampleCount < 3) {
+            if (forceIterator.next() < 80f) lastThreeForcesStrong = false
+            forceSampleCount += 1
+        }
         val comboType =
             when {
-                times.size >= 3 &&
-                    (times[times.lastIndex] - times[times.lastIndex - 1]) <= 800L &&
-                    (times[times.lastIndex - 1] - times[times.lastIndex - 2]) <= 800L &&
-                    forces.takeLast(3).all { it >= 80f } -> "power_burst"
+                previousTime != null && thirdLatestTime != null &&
+                    latestTime - previousTime <= 800L &&
+                    previousTime - thirdLatestTime <= 800L &&
+                    forceSampleCount == 3 && lastThreeForcesStrong -> "power_burst"
 
-                times.size >= 3 &&
-                    (times[times.lastIndex] - times[times.lastIndex - 1]) in 150L..450L &&
-                    (times[times.lastIndex - 1] - times[times.lastIndex - 2]) in 150L..450L -> "triple_combo"
+                previousTime != null && thirdLatestTime != null &&
+                    latestTime - previousTime in 150L..450L &&
+                    previousTime - thirdLatestTime in 150L..450L -> "triple_combo"
 
-                times.size >= 2 &&
-                    (times[times.lastIndex] - times[times.lastIndex - 1]) in 200L..450L -> "combo"
+                previousTime != null && latestTime - previousTime in 200L..450L -> "combo"
 
                 force >= 70f -> "heavy_hit"
                 else -> "hit"
             }
         trainingComboCounts[comboType] = (trainingComboCounts[comboType] ?: 0) + 1
-        trainingComboEvents +=
-            ComboEvent(
-                type = comboType,
-                detectedAtMs = now,
-                punchCount = bluetoothTrainingCount,
-                peakForceN = force.toDouble(),
-            )
         updateComboChips()
         return comboType
     }
 
     private fun calculateBestBurstCount(): Int {
-        if (trainingPunchEvents.isEmpty()) {
-            return bluetoothTrainingCount
-        }
-        val times = trainingPunchEvents.map { it.deviceTs }.sorted()
-        var best = 0
-        for (index in times.indices) {
-            val start = times[index]
-            val count = times.count { it in start..(start + 3_000L) }
-            best = max(best, count)
-        }
-        return best
+        return trainingBestBurstCount.takeIf { it > 0 } ?: bluetoothTrainingCount
     }
 
     private fun caloriesForTraining(
@@ -2885,9 +2994,8 @@ class MainActivity : AppCompatActivity() {
         if (!::dashboardForceSummaryView.isInitialized) {
             return
         }
-        val forces = trainingPunchEvents.map { it.forceN.toFloat() }.filter { it > 0f }
         dashboardForceSummaryView.text =
-            if (forces.isEmpty()) {
+            if (trainingPositiveForceCount == 0) {
                 localText(
                     "本次评分：暂无击打数据",
                     "Relative Power Score: no hit data yet",
@@ -2895,9 +3003,9 @@ class MainActivity : AppCompatActivity() {
                     "คะแนนพลังสัมพัทธ์: ยังไม่มีข้อมูลหมัด",
                 )
             } else {
-                val minForce = forces.minOrNull() ?: 0f
-                val maxForce = forces.maxOrNull() ?: 0f
-                val avgForce = forces.average().toFloat()
+                val minForce = trainingMinForceN.takeIf { it != Float.MAX_VALUE } ?: 0f
+                val maxForce = trainingPeakForceN
+                val avgForce = currentAverageTrainingForceN()
                 localText(
                     "本次评分  最小 ${forceDisplay(minForce)} | 最大 ${forceDisplay(maxForce)} | 平均 ${forceDisplay(avgForce)}",
                     "Relative Power Score  Min ${forceDisplay(minForce)} | Max ${forceDisplay(maxForce)} | Avg ${forceDisplay(avgForce)}",
@@ -3089,7 +3197,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (trainingForceSamples.size >= 8) {
-            val recentAverage = trainingForceSamples.toList().takeLast(8).average().toFloat()
+            val recentAverage = recentTrainingForceAverage(8)
             if (recentAverage > 0f && force < recentAverage * 0.72f) {
                 pushAiCoachCue(
                     key = "force_drop",
@@ -3152,6 +3260,17 @@ class MainActivity : AppCompatActivity() {
                     ),
             )
         }
+    }
+
+    private fun recentTrainingForceAverage(maxSamples: Int): Float {
+        val iterator = trainingForceSamples.descendingIterator()
+        var total = 0f
+        var count = 0
+        while (iterator.hasNext() && count < maxSamples) {
+            total += iterator.next()
+            count += 1
+        }
+        return if (count > 0) total / count else 0f
     }
 
     private fun scheduleRoundStartAiCoachCue(round: Int, totalRounds: Int) {
@@ -3272,10 +3391,12 @@ class MainActivity : AppCompatActivity() {
         return completedBeforeCurrent + currentRoundWorkSeconds
     }
 
-    private fun currentAverageTrainingForceN(): Float {
-        val samples = trainingPunchEvents.map { it.forceN.toFloat() }.filter { it > 0f }
-        return samples.average().takeIf { !it.isNaN() }?.toFloat() ?: 0f
-    }
+    private fun currentAverageTrainingForceN(): Float =
+        if (trainingPositiveForceCount > 0) {
+            (trainingPositiveForceTotal / trainingPositiveForceCount).toFloat()
+        } else {
+            0f
+        }
 
     private fun showDashboardCenterCue(center: String, caption: String, color: Int) {
         dashboardCenterCueText = center
@@ -3325,6 +3446,13 @@ class MainActivity : AppCompatActivity() {
                     },
             color = dashboardCenterCueColor ?: timerColor,
         )
+        val now = SystemClock.elapsedRealtime()
+        if (trainingJob?.isActive == true &&
+            now - lastDashboardStatsRefreshElapsedMs < DASHBOARD_STATS_REFRESH_INTERVAL_MS
+        ) {
+            return
+        }
+        lastDashboardStatsRefreshElapsedMs = now
         val report = latestReport
         val useReportSnapshot =
             report != null &&
@@ -3408,42 +3536,65 @@ class MainActivity : AppCompatActivity() {
         if (!::dashboardGoalProgressTrackView.isInitialized || !::dashboardGoalProgressFillView.isInitialized) {
             return
         }
-        dashboardGoalProgressTrackView.post {
-            val trackWidth = dashboardGoalProgressTrackView.width
-            if (trackWidth <= 0) {
-                return@post
-            }
-            val progress = if (targetHits > 0) completedHits.toFloat() / targetHits.toFloat() else 0f
-            val fillWidth =
-                (trackWidth * progress.coerceIn(0f, 1f))
-                    .roundToInt()
-                    .let { if (completedHits > 0) it.coerceAtLeast(dp(8)) else it }
-            val params = dashboardGoalProgressFillView.layoutParams as FrameLayout.LayoutParams
-            if (params.width != fillWidth) {
-                params.width = fillWidth
-                dashboardGoalProgressFillView.layoutParams = params
-            }
+        val trackWidth = dashboardGoalProgressTrackView.width
+        if (trackWidth <= 0) {
+            return
+        }
+        val progress = if (targetHits > 0) completedHits.toFloat() / targetHits.toFloat() else 0f
+        val fillWidth =
+            (trackWidth * progress.coerceIn(0f, 1f))
+                .roundToInt()
+                .let { if (completedHits > 0) it.coerceAtLeast(dp(8)) else it }
+        val params = dashboardGoalProgressFillView.layoutParams as FrameLayout.LayoutParams
+        if (params.width != fillWidth) {
+            params.width = fillWidth
+            dashboardGoalProgressFillView.layoutParams = params
         }
     }
 
-    private fun updateComboChips() {
+    private fun updateComboChips(force: Boolean = false) {
         if (!::dashboardComboContainer.isInitialized) {
             return
         }
-        dashboardComboContainer.removeAllViews()
+        val now = SystemClock.elapsedRealtime()
+        if (!force && trainingJob?.isActive == true &&
+            now - lastComboChipsRefreshElapsedMs < COMBO_CHIPS_REFRESH_INTERVAL_MS
+        ) {
+            return
+        }
+        lastComboChipsRefreshElapsedMs = now
         val combos = listOf("hit", "heavy_hit", "combo", "triple_combo", "power_burst")
-        combos.forEach { combo ->
-            val count = trainingComboCounts[combo] ?: 0
-            dashboardComboContainer.addView(
-                badgeText(
-                    text = if (count > 0) "${comboDisplayName(combo)} ×$count" else comboDisplayName(combo),
-                    textColor = if (count > 0) "#FFFFFF" else "#557A7D",
-                    fillColor = if (count > 0) comboAccentFill(combo) else "#F7FFFD",
-                ).apply {
+        val cachedViewsAreValid =
+            dashboardComboContainer.childCount == combos.size &&
+                combos.all { combo -> dashboardComboChipViews[combo]?.parent === dashboardComboContainer }
+        if (!cachedViewsAreValid) {
+            dashboardComboContainer.removeAllViews()
+            dashboardComboChipViews.clear()
+            combos.forEach { combo ->
+                val chip = badgeText(comboDisplayName(combo), "#557A7D", "#F7FFFD").apply {
                     (layoutParams as? LinearLayout.LayoutParams)?.rightMargin = dp(6)
-                    alpha = if (count > 0) 1f else 0.64f
-                },
-            )
+                    alpha = 0.64f
+                    tag = false
+                }
+                dashboardComboChipViews[combo] = chip
+                dashboardComboContainer.addView(chip)
+            }
+        }
+        combos.forEach { combo ->
+            val chip = dashboardComboChipViews.getValue(combo)
+            val count = trainingComboCounts[combo] ?: 0
+            val active = count > 0
+            val newText = if (active) "${comboDisplayName(combo)} ×$count" else comboDisplayName(combo)
+            if (chip.text.toString() != newText) {
+                chip.text = newText
+            }
+            if (chip.tag != active) {
+                chip.tag = active
+                chip.setTextColor(Color.parseColor(if (active) "#FFFFFF" else "#557A7D"))
+                val fill = if (active) comboAccentFill(combo) else "#F7FFFD"
+                chip.background = roundedBackground(fill, fill, 999)
+                chip.alpha = if (active) 1f else 0.64f
+            }
         }
     }
 
@@ -3465,6 +3616,32 @@ class MainActivity : AppCompatActivity() {
             else -> localText("击打", "Hit", "Coup", "หมัด")
         }
 
+    private fun prewarmTrainingAudioResources() {
+        ensureToneGenerator()
+        prepareSelectedCloudSoundEffect()
+        if (championMusicSamples != null || championMusicPreloadJob?.isActive == true) {
+            return
+        }
+        championMusicPreloadJob =
+            lifecycleScope.launch(Dispatchers.Default) {
+                loadChampionMusicSamples()
+            }
+    }
+
+    private fun loadChampionMusicSamples(): ShortArray? {
+        championMusicSamples?.let { return it }
+        return synchronized(championMusicSamplesLock) {
+            championMusicSamples?.let { return@synchronized it }
+            runCatching {
+                assets.open("music/01_htr_music_champion_rush.wav").use { stream ->
+                    TrainingMusicSynth.decodeChampionWav(stream.readBytes())
+                }
+            }.getOrNull()?.also { decoded ->
+                championMusicSamples = decoded
+            }
+        }
+    }
+
     private fun startImmersiveTrainingAudio() {
         stopImmersiveTrainingAudio()
         val includeGroove = selectedRhythmMode == TrainingRhythmMode.Rhythm
@@ -3478,11 +3655,7 @@ class MainActivity : AppCompatActivity() {
             lifecycleScope.launch(Dispatchers.Default) {
                 val championSamples =
                     if (autoMusic && TrainingMusicSynth.championCompatibleBpm(bpm)) {
-                        runCatching {
-                            assets.open("music/01_htr_music_champion_rush.wav").use { stream ->
-                                TrainingMusicSynth.decodeChampionWav(stream.readBytes())
-                            }
-                        }.getOrNull()
+                        loadChampionMusicSamples()
                     } else null
                 val backing = TrainingMusicSynth.backingFor(bpm, autoMusic, championSamples != null)
                 val sampleRate = TrainingMusicSynth.SAMPLE_RATE
@@ -3902,8 +4075,7 @@ class MainActivity : AppCompatActivity() {
         if (playLoadedCloudEffect(force)) {
             return
         }
-        prepareSelectedCloudSoundEffect()
-        val tone = ensureToneGenerator()
+        val tone = toneGenerator ?: ensureToneGenerator()
         val toneType =
             when {
                 selectedSoundPack == SoundPack.Street && force >= 70f -> ToneGenerator.TONE_PROP_NACK
@@ -8782,35 +8954,70 @@ class MainActivity : AppCompatActivity() {
         val validLocation = impactLocation in 1..6
         val locationChanged = validLocation && lastImpactLocationRaw != null && impactLocation != lastImpactLocationRaw
         val previous = lastBluetoothPressureRawCount
+        val firstPacketIsActiveHit =
+            previous == null &&
+                trainingJob?.isActive == true &&
+                trainingAcceptingPunches &&
+                validLocation &&
+                (rawCount > 0 || pressureScore > 0)
         if (previous == null) {
             lastBluetoothPressureRawCount = rawCount
             lastImpactLocationRaw = impactLocation.takeIf { validLocation }
             if (bluetoothHitCount == null) {
                 bluetoothHitCount = 0
             }
-            return
         }
-        val delta =
-            when {
-                rawCount >= previous -> rawCount - previous
-                previous >= 240 && rawCount <= 15 -> rawCount + 256 - previous
-                else -> 0
+        // A reconnect resets data5 on this target. Recover the small first batch that arrived
+        // before the notification channel and gyro command were fully restored.
+        val reconnectRecoveredDelta =
+            rawCount.takeIf {
+                previous == null &&
+                    trainingReconnectCounterBaselinePending &&
+                    trainingJob?.isActive == true &&
+                    trainingAcceptingPunches &&
+                    it in 1..MAX_RECONNECT_RECOVERED_HITS
+            }
+        val delta = reconnectRecoveredDelta ?: pressureCountDelta(previous, rawCount, firstPacketIsActiveHit)
+        if (previous == null) {
+            trainingReconnectCounterBaselinePending = false
+        }
+        if (BuildConfig.DEBUG &&
+            (delta > 1 || now - lastPressureDebugLogElapsedMs >= COUNT_DEBUG_LOG_INTERVAL_MS)
+        ) {
+            lastPressureDebugLogElapsedMs = now
+            android.util.Log.d(
+                "TempoStrikeCount",
+                "data5=$rawCount previous=$previous delta=$delta accepting=$trainingAcceptingPunches sessionCount=$bluetoothTrainingCount location=$impactLocation pressure=$pressureScore",
+            )
+        }
+        if (previous != null && rawCount < previous) {
+            android.util.Log.i(
+                "TempoStrikeCount",
+                "data5 rollover/reset previous=$previous current=$rawCount acceptedDelta=$delta sessionCount=$bluetoothTrainingCount",
+            )
         }
         if (delta > 0) {
             lastPressureHitElapsedMs = now
             bluetoothHitCount = (bluetoothHitCount ?: 0) + delta
             if (trainingJob?.isActive == true && trainingAcceptingPunches) {
-                repeat(delta.coerceAtMost(32)) {
-                    recordTrainingPunch()
+                val recordedHits = delta.coerceAtMost(32)
+                repeat(recordedHits) { index ->
+                    recordTrainingPunch(emitRealtimeFeedback = index == recordedHits - 1)
                 }
                 if (delta > 32) {
                     bluetoothTrainingCount += delta - 32
                 }
-                countView.text = bluetoothTrainingCount.toString()
-                pulseCount()
-                Haptics.tap(this)
+                val displayedCount = bluetoothTrainingCount.toString()
+                countView.text = displayedCount
+                if (::dashboardPunchValueView.isInitialized) {
+                    dashboardPunchValueView.text = displayedCount
+                }
+                if (now - lastRealtimeHitFeedbackElapsedMs >= LIVE_HIT_FEEDBACK_INTERVAL_MS) {
+                    lastRealtimeHitFeedbackElapsedMs = now
+                    pulseCount()
+                    Haptics.tap(this)
+                }
                 lastDisplayedCount = bluetoothTrainingCount
-                updateDashboardViews(currentRemainingMillis())
             }
             val displayLocation = impactLocation.takeIf { validLocation } ?: lastImpactLocationRaw
             if (displayLocation != null && ::wallTargetView.isInitialized) {
@@ -8833,12 +9040,7 @@ class MainActivity : AppCompatActivity() {
         lastBluetoothPressureRawCount = rawCount
     }
 
-    private fun displayedTrainingHitCount(): Int =
-        if (::dashboardPunchValueView.isInitialized) {
-            dashboardPunchValueView.text.toString().toIntOrNull() ?: bluetoothTrainingCount
-        } else {
-            bluetoothTrainingCount
-        }
+    private fun displayedTrainingHitCount(): Int = bluetoothTrainingCount
 
 
 
@@ -9122,9 +9324,9 @@ class MainActivity : AppCompatActivity() {
                     }
                     val delayMs =
                         if (attempt == 0) {
-                            800L
+                            150L
                         } else {
-                            (1_600L + attempt * 350L).coerceAtMost(4_500L)
+                            (700L + attempt * 300L).coerceAtMost(3_000L)
                         }
                     delay(delayMs)
                     if (trainingJob?.isActive == true && bluetoothConnectedDevice == null) {
@@ -11735,19 +11937,21 @@ class MainActivity : AppCompatActivity() {
                 ::countView.isInitialized -> countView
                 else -> return
             }
+        if (countPulseAnimator == null) {
+            val growX = ObjectAnimator.ofFloat(targetView, View.SCALE_X, 1.0f, 1.12f)
+            val growY = ObjectAnimator.ofFloat(targetView, View.SCALE_Y, 1.0f, 1.12f)
+            val shrinkX = ObjectAnimator.ofFloat(targetView, View.SCALE_X, 1.12f, 1.0f)
+            val shrinkY = ObjectAnimator.ofFloat(targetView, View.SCALE_Y, 1.12f, 1.0f)
+            countPulseAnimator = AnimatorSet().apply {
+                play(growX).with(growY)
+                play(shrinkX).with(shrinkY).after(growX)
+                duration = 110L
+            }
+        }
         countPulseAnimator?.cancel()
         targetView.scaleX = 1.0f
         targetView.scaleY = 1.0f
-        val growX = ObjectAnimator.ofFloat(targetView, View.SCALE_X, 1.0f, 1.12f)
-        val growY = ObjectAnimator.ofFloat(targetView, View.SCALE_Y, 1.0f, 1.12f)
-        val shrinkX = ObjectAnimator.ofFloat(targetView, View.SCALE_X, 1.12f, 1.0f)
-        val shrinkY = ObjectAnimator.ofFloat(targetView, View.SCALE_Y, 1.12f, 1.0f)
-        countPulseAnimator = AnimatorSet().apply {
-            play(growX).with(growY)
-            play(shrinkX).with(shrinkY).after(growX)
-            duration = 110L
-            start()
-        }
+        countPulseAnimator?.start()
     }
 
 
@@ -13654,6 +13858,12 @@ class MainActivity : AppCompatActivity() {
         const val KEY_PROFILE_AVATAR_URI = "profile_avatar_uri"
         const val KEY_LOCAL_BACKGROUND_PROFILES = "local_background_noise_profiles"
         const val KEY_SELECTED_PLAY_MODE = "selected_play_mode"
+        const val LIVE_HIT_FEEDBACK_INTERVAL_MS = 120L
+        const val PUNCH_SOUND_MIN_INTERVAL_MS = 180L
+        const val DASHBOARD_STATS_REFRESH_INTERVAL_MS = 250L
+        const val COMBO_CHIPS_REFRESH_INTERVAL_MS = 400L
+        const val COUNT_DEBUG_LOG_INTERVAL_MS = 1_000L
+        const val MAX_RECONNECT_RECOVERED_HITS = 32
         const val KEY_TRAINING_LEVEL = "training_play_level"
         const val KEY_TRAINING_XP = "training_play_xp"
         const val KEY_TRAINING_LAST_DATE = "training_last_date"
