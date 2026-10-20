@@ -40,6 +40,42 @@ data class AppPalette(
             AppLanguage.Chinese -> nameZh
             AppLanguage.English -> nameEn
             AppLanguage.French -> nameFr
+            AppLanguage.Spanish ->
+                when (id) {
+                    "current" -> "TempoStrike actual"
+                    "p01" -> "Azul profundo y rosa"
+                    "p02" -> "Cielo, naranja y crema"
+                    "p03" -> "Lino verde y amarillo"
+                    "p04" -> "Pergamino dorado y rojo"
+                    "p05" -> "Púrpura olímpico y naranja"
+                    "p06" -> "Púrpura y oro de medalla"
+                    "p07" -> "Azul púrpura oscuro"
+                    else -> "Azul, púrpura y lila"
+                }
+            AppLanguage.German ->
+                when (id) {
+                    "current" -> "Aktuelles TempoStrike"
+                    "p01" -> "Tiefblau und Rosa"
+                    "p02" -> "Himmelblau, Orange und Creme"
+                    "p03" -> "Leinen, Grün und Gelb"
+                    "p04" -> "Pergament, Gold und Rot"
+                    "p05" -> "Olympiaviolet und Orange"
+                    "p06" -> "Violett und Medaillengold"
+                    "p07" -> "Tiefviolett und Blau"
+                    else -> "Blau, Violett und Flieder"
+                }
+            AppLanguage.Korean ->
+                when (id) {
+                    "current" -> "현재 TempoStrike"
+                    "p01" -> "딥 블루 핑크"
+                    "p02" -> "스카이 오렌지 크림"
+                    "p03" -> "리넨 그린 옐로"
+                    "p04" -> "파치먼트 골드 레드"
+                    "p05" -> "올림픽 퍼플 오렌지"
+                    "p06" -> "퍼플 메달 골드"
+                    "p07" -> "딥 퍼플 블루"
+                    else -> "블루 퍼플 라일락"
+                }
             AppLanguage.Thai -> nameTh
         }
 

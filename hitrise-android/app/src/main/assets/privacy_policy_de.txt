@@ -1,0 +1,47 @@
+TempoStrike-Datenschutzerklärung
+Version: V2.1
+Gültig ab: 2026-09-17
+
+1. Geltungsbereich und Betreiber
+TempoStrike ist eine App für das Training an einer intelligenten Box-Wandpratze und wird von Shaoxing Weimai Technology Co., Ltd. angeboten. Diese Erklärung beschreibt den Umgang mit Informationen bei der Bereitstellung der SENWALL#-Bluetooth-Verbindung, des Live-Trainings, der Cloud-Aufzeichnungen, Erfolge, Ranglisten und Profilfunktionen. Bitte lies sie vor der Nutzung der App.
+
+2. Informationen und Zwecke
+Benutzer- und Installationskennungen. Bei der ersten Nutzung erstellt die App automatisch eine Benutzer-ID und eine Installations-ID und berechnet einen Geräte-Hash. Cloud-Anfragen verwenden diese internen Kennungen, den erforderlichen Zugriffsstatus und die App-Version, um Trainingsdaten zuzuordnen und den Dienst zu betreiben. Ein echter Name ist nicht erforderlich.
+Profil. Spitzname, Sprache, Regionscode und Avatarfarbe werden mit deinem TempoStrike-Cloudprofil synchronisiert. Wenn du über die Systemdateiauswahl ein Avatarfoto auswählst, speichert die App eine Referenz darauf und zeigt es lokal an. Die aktuelle Version lädt dieses Foto nicht auf den TempoStrike-Server hoch.
+Bluetooth und Wandpratze. Zum Erkennen und Verbinden von SENWALL# verarbeitet die App Namen und Adressen naher Geräte, Verbindungs-, Akku- und Ladestatus sowie die kumulierte Schlagzahl, die relative Kraftwertung und die Drucktrefferposition (1–6). Die Positionsdaten steuern die Live-Markierung der Trefferfläche; der aktuelle Trainings-Upload enthält Zusammenfassungen und keine Rohaufzeichnung jeder einzelnen Trefferposition.
+Training. Die App verarbeitet Sitzungszeiten, Runden, Schlagzahlen, höchste und durchschnittliche relative Kraftwertung, ausgewählte Takt-BPM und Trainingsgeschwindigkeit, Taktbewertungen, Kombinationen, geschätzte Kalorien und äquivalente Fettverbrennung, Spielmodus, Soundauswahl sowie Start- und Endzeiten für Live-Rückmeldung, Rundenberichte, Verlauf, Erfolge und Ranglisten. Nach jeder Runde wird eine Zusammenfassung übermittelt.
+Betrieb und Netzwerk. Cloud-Anfragen verwenden Installations- und Authentifizierungsdaten sowie die App-Version. Der Dienst kann Anfragezeit, IP-Adresse, Ergebnis- und Fehlerinformationen verarbeiten, um zu kommunizieren, die Sicherheit zu gewährleisten und Fehler zu beheben.
+
+3. Rechtsgrundlagen und Wahlmöglichkeiten
+Wir verarbeiten Informationen, die für die von dir gewählten Trainings-, Synchronisierungs- und Ranglistenfunktionen erforderlich sind. Soweit das anwendbare Recht dies verlangt, holen wir eine Einwilligung ein oder erfüllen eine andere gesetzliche Verpflichtung. Ohne Bluetooth-Berechtigungen sind Geräteverbindung und Live-Training nicht möglich. Ohne Netzwerk bleiben abgeschlossene Berichte in einer lokalen Upload-Warteschlange und werden nach Wiederherstellung der Verbindung erneut hochgeladen.
+
+4. Geräteberechtigungen und Funktionen
+Bluetooth-Such- und Verbindungsberechtigungen dienen zum Erkennen und Verbinden von SENWALL# und zum Empfang seiner Daten. Einige Android-Versionen verlangen für die Bluetooth-Suche zusätzlich die Berechtigung für den genauen Standort; die App nutzt Ortungsdienste nicht zur Erstellung eines Bewegungsprofils.
+Der Internetzugang unterstützt Profil- und Trainingssynchronisierung, Ranglisten, Erfolge und den Abruf von Ressourcen. Ein dauerhafter Hintergrundauftrag versucht ausstehende Berichte erneut zu übertragen, sobald ein Netzwerk verfügbar ist. Vibration, Lautsprecherausgabe und die System-Sprachausgabe liefern Takte, Effekte und Trainingshinweise.
+Die Avatarauswahl nutzt die Systemdateiauswahl. Ein Trainingsposter oder Text wird nur dann an eine andere App übergeben, wenn du ihn teilst. Diese Version fordert weder Mikrofon- noch Kameraberechtigung an und zählt Schläge nicht durch Audioaufnahmen.
+
+5. Lokale Speicherung, Cloud-Speicherung und Offline-Wiederholung
+Sprache, Trainings- und Musikeinstellungen, das letzte Bluetooth-Gerät, die lokale Referenz des Avatarfotos, interne Benutzerkennungen und Caches werden im privaten App-Speicher abgelegt. Die Warteschlange speichert vorübergehend Trainingszusammenfassungen mit Dienstzugriffskennungen; ein Eintrag wird nach erfolgreichem Upload entfernt.
+Profildaten, hochgeladene Sitzungs- und Rundenberichte, Erfolge und Ranglisten werden im TempoStrike-Clouddienst und in dessen Datenbank gespeichert, getrennt vom ursprünglichen HitRise-Projekt. Durch Deinstallation oder Löschen der App-Daten können noch nicht hochgeladene Berichte verloren gehen. Bereits mit der Cloud synchronisierte Daten werden dadurch nicht automatisch entfernt.
+
+6. Sichtbarkeit, Weitergabe und externe Dienste
+Ranglisten zeigen anderen Benutzern deinen Spitznamen, die maskierte Benutzer-ID, Region, Stufe und das jeweilige Ergebnis. Beim Teilen erhält die ausgewählte App den gewählten Text oder das Poster und verarbeitet ihn nach ihren eigenen Regeln. Gesprochene Hinweise werden vom auf deinem Gerät eingerichteten Sprachausgabedienst verarbeitet; dies richtet sich nach dessen Einstellungen.
+Wir verkaufen keine personenbezogenen Daten. Hosting- und Netzwerkanbieter können auf erforderliche Informationen zugreifen, soweit sie unsere Cloud-Infrastruktur bereitstellen. Wenn für eine Weitergabe, Übertragung oder grenzüberschreitende Bereitstellung eine gesonderte Information oder Einwilligung erforderlich ist, halten wir das anwendbare Verfahren ein.
+
+7. Aufbewahrung und Sicherheit
+Wir speichern Informationen nur so lange, wie es für die genannten Zwecke vernünftigerweise erforderlich ist, vorbehaltlich gesetzlicher Aufbewahrungspflichten und der Erfordernisse bei Streitigkeiten oder Sicherheitsvorfällen. Die Löschung personenbezogener Cloud-Daten kannst du per E-Mail beantragen. Nach Identitätsprüfung löschen oder anonymisieren wir die Daten im gesetzlich vorgeschriebenen Umfang oder erläutern, warum eine sofortige Löschung nicht möglich ist.
+Die App kommuniziert per HTTPS mit der Cloud und verwendet Zugriffskontrollen, Berechtigungsverwaltung und weitere angemessene Schutzmaßnahmen. Vollständige Sicherheit kann in keiner Netzwerk- oder Geräteumgebung garantiert werden; schütze dein Telefon und deine App-Daten.
+
+8. Deine Rechte
+Du kannst Verlauf, Erfolge, Ranglisten und Profildaten in der App ansehen und verfügbare Profilfelder wie Spitzname und Sprache bearbeiten. Für Auskunft, Kopie, Berichtigung, Löschung, Widerruf einer anwendbaren Einwilligung oder andere gesetzliche Rechte kontaktiere uns unter der unten genannten E-Mail-Adresse. Wir können zuvor deine Identität prüfen. Ein Widerruf berührt nicht die Rechtmäßigkeit der vorherigen Verarbeitung, kann aber zu Einschränkungen entsprechender Funktionen führen.
+
+9. Minderjährige
+Minderjährige sollten den Dienst unter Anleitung und mit Zustimmung eines Elternteils oder Erziehungsberechtigten nutzen und mit angemessener Intensität trainieren. Wenn ein Erziehungsberechtigter glaubt, dass Daten eines Kindes ohne ausreichende Erlaubnis verarbeitet wurden, kontaktiere uns bitte.
+
+10. Aktualisierungen dieser Erklärung
+Wenn sich Funktionen oder die Informationsverarbeitung wesentlich ändern, aktualisieren wir diese Erklärung und informieren über die App, Versionshinweise oder eine andere angemessene Methode. Ist eine erneute Einwilligung erforderlich, holen wir sie gesondert ein.
+
+11. Kontakt
+Betreiber: Shaoxing Weimai Technology Co., Ltd.
+E-Mail: zclei@vip.sina.com
+Nutze diese Adresse für Fragen, Beschwerden oder Anträge zu Datenschutzrechten.

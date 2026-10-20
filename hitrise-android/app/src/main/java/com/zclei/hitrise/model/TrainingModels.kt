@@ -1,4 +1,4 @@
-﻿package com.zclei.hitrise.model
+package com.zclei.hitrise.model
 
 enum class TrainingMode(val durationSeconds: Int, val label: String) {
     Seconds30(durationSeconds = 30, label = "30 sec"),
@@ -11,6 +11,9 @@ enum class AppLanguage(val storageValue: String) {
     Chinese(storageValue = "zh"),
     English(storageValue = "en"),
     French(storageValue = "fr"),
+    Spanish(storageValue = "es"),
+    German(storageValue = "de"),
+    Korean(storageValue = "ko"),
     Thai(storageValue = "th");
 
     companion object {

@@ -34,6 +34,7 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import android.speech.tts.Voice
 import android.media.ToneGenerator
 import android.text.InputFilter
 import android.text.SpannableString
@@ -743,6 +744,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         loadSettings()
+        refreshBluetoothStatusMessageForLanguage()
         ensureInstallIdentity()
         loadCloudIdentity()
         super.onCreate(savedInstanceState)
@@ -1207,6 +1209,10 @@ class MainActivity : AppCompatActivity() {
                 gravity = Gravity.CENTER
                 setTextColor(Color.parseColor("#FF8A32"))
                 setPadding(0, dp(6), 0, dp(2))
+                // Countdown speech is produced explicitly through TTS. Excluding this rapidly
+                // changing visual cue prevents TalkBack from speaking the same cue a second time.
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_NONE
                 visibility = View.GONE
             }
         trainingControlCard.addView(countdownView)
@@ -2452,6 +2458,9 @@ class MainActivity : AppCompatActivity() {
                     "Round $round in progress",
                     "Round $round en cours",
                     "รอบ $round กำลังฝึก",
+                    "Ronda $round en curso",
+                    "Runde $round läuft",
+                    "라운드 $round 진행 중",
                 )
             statusView.setTextColor(Color.parseColor("#FFB347"))
             scrollRealtimeTrainingToTop()
@@ -2493,9 +2502,12 @@ class MainActivity : AppCompatActivity() {
                     remainingView.text =
                         localText(
                             "休息 ${formatDurationClock(remainingMs)}",
-                            "Rest ${formatDurationClock(remainingMs)}",
+                            "Pause ${formatDurationClock(remainingMs)}",
                             "Repos ${formatDurationClock(remainingMs)}",
                             "พัก ${formatDurationClock(remainingMs)}",
+                            "Descanso ${formatDurationClock(remainingMs)}",
+                            "Pause ${formatDurationClock(remainingMs)}",
+                            "휴식 ${formatDurationClock(remainingMs)}",
                         )
                     updateDashboardViews(remainingMs)
                     delay(100L)
@@ -2541,8 +2553,11 @@ class MainActivity : AppCompatActivity() {
                 color = Color.parseColor("#FFD060"),
             )
             lastSpokenCountdown = value
-            countdownView.announceForAccessibility(value.toString())
-            speakCueAndWait(value.toString(), timeoutMs = 900L)
+            speakCueAndWait(
+                text = displayCountdownCue(value),
+                timeoutMs = 900L,
+                voiceLocales = countdownTtsLocales(),
+            )
             delay(120L)
         }
         countdownView.text = displayGoLabel()
@@ -2554,14 +2569,17 @@ class MainActivity : AppCompatActivity() {
             color = Color.parseColor("#FFB347"),
         )
         goSpoken = true
-        countdownView.announceForAccessibility(displayGoLabel())
         // Do not wait for GO speech to finish: users start punching as soon as GO appears.
-        speakCue(displayGoCue())
+        speakCue(displayGoCue(), voiceLocales = countdownTtsLocales())
     }
 
-    private suspend fun speakCueAndWait(text: String, timeoutMs: Long) {
+    private suspend fun speakCueAndWait(
+        text: String,
+        timeoutMs: Long,
+        voiceLocales: LinkedHashSet<Locale> = preferredTtsLocales(),
+    ) {
         val completed = CompletableDeferred<Unit>()
-        speakCue(text) {
+        speakCue(text, voiceLocales = voiceLocales) {
             if (!completed.isCompleted) {
                 completed.complete(Unit)
             }
@@ -2915,11 +2933,35 @@ class MainActivity : AppCompatActivity() {
         val minutes = safeSeconds / 60
         val seconds = safeSeconds % 60
         return if (minutes <= 0) {
-            localText("${seconds} 秒", "${seconds}s", "${seconds} s", "${seconds} วิ")
+            localText(
+                "${seconds} 秒",
+                "${seconds}s",
+                "${seconds} s",
+                "${seconds} วิ",
+                "${seconds}s",
+                "${seconds}s",
+                "${seconds}초",
+            )
         } else if (seconds == 0) {
-            localText("${minutes} 分钟", "${minutes} min", "${minutes} min", "${minutes} นาที")
+            localText(
+                "${minutes} 分钟",
+                "${minutes} min",
+                "${minutes} min",
+                "${minutes} นาที",
+                "${minutes} mín.",
+                "${minutes} min",
+                "${minutes} 분",
+            )
         } else {
-            localText("${minutes}分${seconds}秒", "${minutes}m ${seconds}s", "${minutes} min ${seconds} s", "${minutes} นาที ${seconds} วิ")
+            localText(
+                "${minutes}分${seconds}秒",
+                "${minutes}m ${seconds}s",
+                "${minutes} min ${seconds} s",
+                "${minutes} นาที ${seconds} วิ",
+                "${minutes}m ${seconds}s",
+                "${minutes}m ${seconds}s",
+                "${minutes}m ${seconds}s",
+            )
         }
     }
 
@@ -2933,6 +2975,9 @@ class MainActivity : AppCompatActivity() {
                 "Round ${report.completedRounds}/${report.totalRounds}",
                 "Round ${report.completedRounds}/${report.totalRounds}",
                 "รอบ ${report.completedRounds}/${report.totalRounds}",
+                "Ronda ${report.completedRounds}/${report.totalRounds}",
+                "Runde ${report.completedRounds}/${report.totalRounds}",
+                "라운드 ${report.completedRounds}/${report.totalRounds}",
             )
         } else {
             localText("训练战报", "Training Report", "Rapport", "รายงานการฝึก")
@@ -2945,6 +2990,9 @@ class MainActivity : AppCompatActivity() {
                 "Round ${report.completedRounds} Training Report",
                 "Rapport du round ${report.completedRounds}",
                 "รายงานรอบ ${report.completedRounds}",
+                "Informe de entrenamiento de la ronda ${report.completedRounds}",
+                "Trainingsbericht für Runde ${report.completedRounds}",
+                "${report.completedRounds}라운드 훈련 보고서",
             )
         } else {
             localText("TempoStrike 训练战报", "TempoStrike Training Report", "Rapport TempoStrike", "รายงาน TempoStrike")
@@ -2956,6 +3004,9 @@ class MainActivity : AppCompatActivity() {
             "Total ${formatTrainingDuration(report.durationSeconds)} | ${report.totalHits} punches | ${formatCalories(report.caloriesBurned)} | ${formatFatGrams(report.fatBurnedGrams)} equivalent fat",
             "Total ${formatTrainingDuration(report.durationSeconds)} | ${report.totalHits} coups | ${formatCalories(report.caloriesBurned)} | ${formatFatGrams(report.fatBurnedGrams)} graisse équiv.",
             "รวม ${formatTrainingDuration(report.durationSeconds)} | ${report.totalHits} หมัด | ${formatCalories(report.caloriesBurned)} | ไขมันเทียบเท่า ${formatFatGrams(report.fatBurnedGrams)}",
+            "Total ${formatTrainingDuration(report.durationSeconds)} | Golpes ${report.totalHits} | ${formatCalories(report.caloriesBurned)} | ${formatFatGrams(report.fatBurnedGrams)} grasa equivalente",
+            "Gesamt ${formatTrainingDuration(report.durationSeconds)} | ${report.totalHits} Schläge | ${formatCalories(report.caloriesBurned)} | ${formatFatGrams(report.fatBurnedGrams)} äquivalentes Fett",
+            "합계 ${formatTrainingDuration(report.durationSeconds)} | ${report.totalHits} 펀치 | ${formatCalories(report.caloriesBurned)} | ${formatFatGrams(report.fatBurnedGrams)} 환산 지방",
         )
 
     private fun trainingBattleReportForceLine(report: TrainingReport): String =
@@ -2964,6 +3015,9 @@ class MainActivity : AppCompatActivity() {
             "Peak ${forceDisplay(report.peakForceN)} | Avg ${forceDisplay(report.avgForceN)} | ${formatReportEndedTime(report.endedAtEpochMs)}",
             "Max ${forceDisplay(report.peakForceN)} | Moy. ${forceDisplay(report.avgForceN)} | ${formatReportEndedTime(report.endedAtEpochMs)}",
             "สูงสุด ${forceDisplay(report.peakForceN)} | เฉลี่ย ${forceDisplay(report.avgForceN)} | ${formatReportEndedTime(report.endedAtEpochMs)}",
+            "Pico ${forceDisplay(report.peakForceN)} | Promedio ${forceDisplay(report.avgForceN)} | ${formatReportEndedTime(report.endedAtEpochMs)}",
+            "Peak ${forceDisplay(report.peakForceN)} | Durchschn. ${forceDisplay(report.avgForceN)} | ${formatReportEndedTime(report.endedAtEpochMs)}",
+            "피크 ${forceDisplay(report.peakForceN)} | 평균 ${forceDisplay(report.avgForceN)} | ${formatReportEndedTime(report.endedAtEpochMs)}",
         )
 
     private fun trainingStatsSummary(stats: CloudUserStatistics): String =
@@ -2972,6 +3026,9 @@ class MainActivity : AppCompatActivity() {
             "Total ${formatTrainingDuration(stats.totalTrainingSeconds)} | ${stats.totalHits} punches | ${formatCalories(stats.totalCaloriesBurned)}",
             "Total ${formatTrainingDuration(stats.totalTrainingSeconds)} | ${stats.totalHits} coups | ${formatCalories(stats.totalCaloriesBurned)}",
             "รวม ${formatTrainingDuration(stats.totalTrainingSeconds)} | ${stats.totalHits} หมัด | ${formatCalories(stats.totalCaloriesBurned)}",
+            "Total ${formatTrainingDuration(stats.totalTrainingSeconds)} | Golpes ${stats.totalHits} | ${formatCalories(stats.totalCaloriesBurned)}",
+            "Gesamt ${formatTrainingDuration(stats.totalTrainingSeconds)} | ${stats.totalHits} Schläge | ${formatCalories(stats.totalCaloriesBurned)}",
+            "합계 ${formatTrainingDuration(stats.totalTrainingSeconds)} | ${stats.totalHits} 펀치 | ${formatCalories(stats.totalCaloriesBurned)}",
         )
 
     private fun trainingStatsForceBurnLine(stats: CloudUserStatistics): String =
@@ -2980,6 +3037,9 @@ class MainActivity : AppCompatActivity() {
             "Peak ${forceDisplay(stats.bestPeakForceN)} | Best avg ${forceDisplay(stats.bestAvgForceN)} | Fat ${formatFatGrams(stats.totalFatBurnedGrams)}",
             "Max ${forceDisplay(stats.bestPeakForceN)} | Moy. max ${forceDisplay(stats.bestAvgForceN)} | Graisse ${formatFatGrams(stats.totalFatBurnedGrams)}",
             "สูงสุด ${forceDisplay(stats.bestPeakForceN)} | เฉลี่ยดีที่สุด ${forceDisplay(stats.bestAvgForceN)} | ไขมันเทียบเท่า ${formatFatGrams(stats.totalFatBurnedGrams)}",
+            "Pico ${forceDisplay(stats.bestPeakForceN)} | Mejor promedio ${forceDisplay(stats.bestAvgForceN)} | Grasa ${formatFatGrams(stats.totalFatBurnedGrams)}",
+            "Peak ${forceDisplay(stats.bestPeakForceN)} | Bester Durchschnitt ${forceDisplay(stats.bestAvgForceN)} | Fett ${formatFatGrams(stats.totalFatBurnedGrams)}",
+            "피크 ${forceDisplay(stats.bestPeakForceN)} | 최고 평균 ${forceDisplay(stats.bestAvgForceN)} | 지방 ${formatFatGrams(stats.totalFatBurnedGrams)}",
         )
 
     private fun trainingReportLeaderboardLine(): String =
@@ -3011,6 +3071,9 @@ class MainActivity : AppCompatActivity() {
                     "Relative Power Score  Min ${forceDisplay(minForce)} | Max ${forceDisplay(maxForce)} | Avg ${forceDisplay(avgForce)}",
                     "Score de puissance relative  Min ${forceDisplay(minForce)} | Max ${forceDisplay(maxForce)} | Moy ${forceDisplay(avgForce)}",
                     "คะแนนพลังสัมพัทธ์  ต่ำสุด ${forceDisplay(minForce)} | สูงสุด ${forceDisplay(maxForce)} | เฉลี่ย ${forceDisplay(avgForce)}",
+                    "Puntuación de potencia relativa  Mín. ${forceDisplay(minForce)} | Max ${forceDisplay(maxForce)} | Promedio ${forceDisplay(avgForce)}",
+                    "Relative Kraftwertung  Min. ${forceDisplay(minForce)} | Max ${forceDisplay(maxForce)} | Durchschn. ${forceDisplay(avgForce)}",
+                    "상대 파워 점수  최소 ${forceDisplay(minForce)} | 최대 ${forceDisplay(maxForce)} | 평균 ${forceDisplay(avgForce)}",
                 )
             }
         dashboardForceSummaryView.visibility = View.VISIBLE
@@ -3296,6 +3359,9 @@ class MainActivity : AppCompatActivity() {
                     "Round $round starts. Settle your breathing, punch short, and bring the guard back.",
                     "Round $round. Respirez, frappez court et ramenez la garde.",
                     "เริ่มรอบ $round คุมลมหายใจ ชกสั้น และยกการ์ดกลับ",
+                    spanish = "Comienza la ronda $round. Controla la respiración, golpea corto y vuelve a la guardia.",
+                    german = "Runde $round beginnt. Atme ruhig, schlage kurz und bringe die Deckung zurück.",
+                    korean = "$round 라운드를 시작합니다. 호흡을 가다듬고 짧게 치며 가드를 되돌리세요.",
                 ),
             meta =
                 localText(
@@ -3303,6 +3369,9 @@ class MainActivity : AppCompatActivity() {
                     "Trigger: round $round/$totalRounds started",
                     "Déclencheur : round $round/$totalRounds lancé",
                     "สาเหตุ: เริ่มรอบ $round/$totalRounds",
+                    spanish = "Motivo: comienza la ronda $round/$totalRounds",
+                    german = "Auslöser: Runde $round/$totalRounds beginnt",
+                    korean = "발동 이유: $round/$totalRounds 라운드 시작",
                 ),
             force = true,
         )
@@ -3482,6 +3551,9 @@ class MainActivity : AppCompatActivity() {
                 "Round $currentTrainingRound / $currentTrainingRoundCount",
                 "Round $currentTrainingRound / $currentTrainingRoundCount",
                 "รอบ $currentTrainingRound / $currentTrainingRoundCount",
+                "Ronda $currentTrainingRound / $currentTrainingRoundCount",
+                "Runde $currentTrainingRound / $currentTrainingRoundCount",
+                "라운드 $currentTrainingRound / $currentTrainingRoundCount",
             )
         dashboardPunchValueView.text = displayHits.toString()
         dashboardBpmValueView.text = if (displayBpm > 0f) displayBpm.roundToInt().toString() else "--"
@@ -3494,6 +3566,9 @@ class MainActivity : AppCompatActivity() {
                 "Peak ${forceDisplay(trainingPeakForceN)}",
                 "Pic ${forceDisplay(trainingPeakForceN)}",
                 "สูงสุด ${forceDisplay(trainingPeakForceN)}",
+                "Pico ${forceDisplay(trainingPeakForceN)}",
+                "Spitze ${forceDisplay(trainingPeakForceN)}",
+                "피크 ${forceDisplay(trainingPeakForceN)}",
             )
         dashboardRhythmValueView.text =
             if (selectedRhythmMode == TrainingRhythmMode.Rhythm) {
@@ -3508,6 +3583,9 @@ class MainActivity : AppCompatActivity() {
                 "Today: $goalTarget hits | Done $displayHits hits",
                 "Aujourd'hui : $goalTarget coups | $displayHits coups faits",
                 "วันนี้ $goalTarget หมัด | ทำแล้ว $displayHits หมัด",
+                "Hoy: $goalTarget golpes | Completados: $displayHits",
+                "Heute: $goalTarget Schläge | Geschafft: $displayHits",
+                "오늘: ${goalTarget}회 타격 | 완료: ${displayHits}회",
             )
         updateDashboardGoalProgressBar(displayHits, goalTarget)
         refreshSecondaryHomeCardsThrottled()
@@ -3772,7 +3850,15 @@ class MainActivity : AppCompatActivity() {
     private fun previewCloudSoundEffect(effect: CloudSoundEffect) {
         stopCloudEffectPreview()
         stopBackgroundMusicPreview()
-        Toast.makeText(this, localText("正在试听：${cloudSoundEffectName(effect)}", "Previewing: ${cloudSoundEffectName(effect)}", "Écoute : ${cloudSoundEffectName(effect)}", "ลองฟัง: ${cloudSoundEffectName(effect)}"), Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, localText(
+            "正在试听：${cloudSoundEffectName(effect)}",
+            "Previewing: ${cloudSoundEffectName(effect)}",
+            "Écoute : ${cloudSoundEffectName(effect)}",
+            "ลองฟัง: ${cloudSoundEffectName(effect)}",
+            "Vista previa: ${cloudSoundEffectName(effect)}",
+            "Vorschau: ${cloudSoundEffectName(effect)}",
+            "미리보기: ${cloudSoundEffectName(effect)}",
+        ), Toast.LENGTH_SHORT).show()
         cloudEffectPreviewPlayer =
             MediaPlayer().apply {
                 setAudioAttributes(
@@ -3831,7 +3917,15 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, backgroundMusicDescription(track), Toast.LENGTH_SHORT).show()
             return
         }
-        Toast.makeText(this, localText("正在试听：${backgroundMusicName(track)}", "Previewing: ${backgroundMusicName(track)}", "Écoute : ${backgroundMusicName(track)}", "ลองฟัง: ${backgroundMusicName(track)}"), Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, localText(
+            "正在试听：${backgroundMusicName(track)}",
+            "Previewing: ${backgroundMusicName(track)}",
+            "Écoute : ${backgroundMusicName(track)}",
+            "ลองฟัง: ${backgroundMusicName(track)}",
+            "Vista previa: ${backgroundMusicName(track)}",
+            "Vorschau: ${backgroundMusicName(track)}",
+            "미리보기: ${backgroundMusicName(track)}",
+        ), Toast.LENGTH_SHORT).show()
         backgroundMusicPreviewPlayer =
             MediaPlayer().apply {
                 setAudioAttributes(
@@ -4391,6 +4485,9 @@ class MainActivity : AppCompatActivity() {
             "Round ${report.completedRounds}: ${formatTrainingDuration(report.durationSeconds)} | ${report.totalHits} punches | ${formatCalories(report.caloriesBurned)} | ${formatFatGrams(report.fatBurnedGrams)} equivalent fat",
             "Round ${report.completedRounds} : ${formatTrainingDuration(report.durationSeconds)} | ${report.totalHits} coups | ${formatCalories(report.caloriesBurned)} | ${formatFatGrams(report.fatBurnedGrams)} graisse équiv.",
             "รอบ ${report.completedRounds}: ${formatTrainingDuration(report.durationSeconds)} | ${report.totalHits} หมัด | ${formatCalories(report.caloriesBurned)} | ไขมันเทียบเท่า ${formatFatGrams(report.fatBurnedGrams)}",
+            "Ronda ${report.completedRounds}: ${formatTrainingDuration(report.durationSeconds)} | Golpes ${report.totalHits} | ${formatCalories(report.caloriesBurned)} | ${formatFatGrams(report.fatBurnedGrams)} grasa equivalente",
+            "Runde ${report.completedRounds}: ${formatTrainingDuration(report.durationSeconds)} | ${report.totalHits} Schläge | ${formatCalories(report.caloriesBurned)} | ${formatFatGrams(report.fatBurnedGrams)} äquivalentes Fett",
+            "라운드 ${report.completedRounds}: ${formatTrainingDuration(report.durationSeconds)} | ${report.totalHits} 펀치 | ${formatCalories(report.caloriesBurned)} | ${formatFatGrams(report.fatBurnedGrams)} 환산 지방",
         )
 
     private fun addShareTrainingButtonToReport() {
@@ -4459,6 +4556,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "用户ID"
             AppLanguage.English -> "User ID"
             AppLanguage.French -> "ID utilisateur"
+            AppLanguage.Spanish -> "ID de usuario"
+            AppLanguage.German -> "Benutzer-ID"
+            AppLanguage.Korean -> "사용자 ID"
             AppLanguage.Thai -> "รหัสผู้ใช้"
         }
 
@@ -5090,6 +5190,9 @@ class MainActivity : AppCompatActivity() {
                 AppLanguage.Chinese -> "训练战报"
                 AppLanguage.English -> "TRAINING REPORT"
                 AppLanguage.French -> "RAPPORT"
+                AppLanguage.Spanish -> "INFORME DE ENTRENAMIENTO"
+                AppLanguage.German -> "TRAININGSBERICHT"
+                AppLanguage.Korean -> "훈련 보고서"
                 AppLanguage.Thai -> "รายงานการฝึก"
             }
         trainingHeroHeadlineView.text =
@@ -5106,6 +5209,9 @@ class MainActivity : AppCompatActivity() {
                         AppLanguage.Chinese -> "云端训练数据正在同步，稍后即可看到你的成绩、段位与成长进度。"
                         AppLanguage.English -> "Cloud data is syncing. Your scores, rank, and growth progress will appear soon."
                         AppLanguage.French -> "Les données cloud sont en cours de synchronisation. Vos scores et votre progression apparaîtront bientôt."
+                        AppLanguage.Spanish -> "Los datos de la nube se están sincronizando. Tus puntuaciones, nivel y progreso aparecerán pronto."
+                        AppLanguage.German -> "Die Cloud-Daten werden synchronisiert. Punkte, Rang und Fortschritt werden gleich angezeigt."
+                        AppLanguage.Korean -> "클라우드 데이터를 동기화하고 있습니다. 점수, 등급과 성장 진행도가 곧 표시됩니다."
                         AppLanguage.Thai -> "กำลังซิงก์ข้อมูลคลาวด์ ไม่นานคุณจะเห็นคะแนน ระดับ และความคืบหน้า"
                     }
             }
@@ -5116,7 +5222,12 @@ class MainActivity : AppCompatActivity() {
                 trainingStatsForceBurnLine(it)
             } ?: when (selectedLanguage) {
                 AppLanguage.Chinese -> "暂无最新战报，完成一轮训练后这里会展示你的核心成绩。"
-                else -> "No battle report yet. Finish a session and your key stats will appear here."
+                AppLanguage.English -> "No battle report yet. Finish a session and your key stats will appear here."
+                AppLanguage.French -> "Aucun rapport récent. Terminez une séance pour afficher vos statistiques clés."
+                AppLanguage.Spanish -> "Aún no hay un informe reciente. Completa una sesión para ver tus estadísticas clave."
+                AppLanguage.German -> "Noch kein aktueller Bericht. Schließe eine Einheit ab, um deine wichtigsten Werte zu sehen."
+                AppLanguage.Korean -> "아직 최신 보고서가 없습니다. 훈련을 완료하면 주요 기록이 여기에 표시됩니다."
+                AppLanguage.Thai -> "ยังไม่มีรายงานล่าสุด เมื่อฝึกครบหนึ่งรอบ สถิติสำคัญจะแสดงที่นี่"
             }
         trainingHeroProgressView.text =
             when {
@@ -5342,6 +5453,9 @@ class MainActivity : AppCompatActivity() {
                         "Level ${level.level} | ${level.targetHits} hits",
                         "Niveau ${level.level} | ${level.targetHits} coups",
                         "ด่าน ${level.level} | เป้าหมาย ${level.targetHits} ครั้ง",
+                        "Nivel ${level.level} | ${level.targetHits} golpes",
+                        "Ebene ${level.level} | ${level.targetHits} Treffer",
+                        "레벨 ${level.level} | ${level.targetHits} 타격 수",
                     ),
                     body = localText(
                         "完成本关即可解锁下一关。闯关模式会把训练变成可持续推进的成长路线。",
@@ -5360,6 +5474,9 @@ class MainActivity : AppCompatActivity() {
                         "Daily Challenge | $dailyTarget hits",
                         "Défi du jour | $dailyTarget coups",
                         "ภารกิจวันนี้ | $dailyTarget ครั้ง",
+                        "Desafío diario | $dailyTarget golpes",
+                        "Tägliche Herausforderung | $dailyTarget Treffer",
+                        "일일 도전 | $dailyTarget 타격 수",
                     ),
                     body = localText(
                         "每天一个轻量目标，完成后记录今日任务奖励，适合培养连续训练习惯。",
@@ -5476,6 +5593,9 @@ class MainActivity : AppCompatActivity() {
             "$challengeMessage $paceLine Streak ${outcome.streak} day(s), XP +${outcome.xpGain}. $trend",
             "$challengeMessage $paceLine Série de ${outcome.streak} jour(s), XP +${outcome.xpGain}. $trend",
             "$challengeMessage $paceLine ฝึกต่อเนื่อง ${outcome.streak} วัน, XP +${outcome.xpGain}. $trend",
+            "$challengeMessage $paceLine Racha ${outcome.streak} día(s), XP +${outcome.xpGain}. $trend",
+            "$challengeMessage $paceLine Streak ${outcome.streak} Tag(e), XP +${outcome.xpGain}. $trend",
+            "$challengeMessage $paceLine 연속 ${outcome.streak}일, XP +${outcome.xpGain}. $trend",
         )
     }
 
@@ -5493,6 +5613,9 @@ class MainActivity : AppCompatActivity() {
                             "Level cleared. Level ${outcome.levelAfter} unlocked.",
                             "Niveau réussi. Niveau ${outcome.levelAfter} débloqué.",
                             "ผ่านด่านแล้ว ปลดล็อกด่าน ${outcome.levelAfter}",
+                            "Nivel superado. Se ha desbloqueado el nivel ${outcome.levelAfter}.",
+                            "Level geschafft. Level ${outcome.levelAfter} freigeschaltet.",
+                            "레벨이 클리어되었습니다. 레벨 ${outcome.levelAfter}가 잠금 해제되었습니다.",
                         )
                     } else {
                         localText(
@@ -5509,6 +5632,9 @@ class MainActivity : AppCompatActivity() {
                         "$remaining hits to clear this level. Keep the rhythm steady next time.",
                         "Il manque $remaining coups pour réussir. Gardez le rythme la prochaine fois.",
                         "ยังขาด $remaining หมัดสำหรับด่านนี้ ครั้งหน้าคุมจังหวะให้มั่น",
+                        "Faltan $remaining golpes para superar este nivel. Mantén un ritmo constante la próxima vez.",
+                        "Noch $remaining Schläge bis zum Abschluss dieses Levels. Halte beim nächsten Mal den Rhythmus.",
+                        "이 레벨 완료까지 ${remaining}회 남았습니다. 다음에는 일정한 리듬을 유지하세요.",
                     )
                 }
             }
@@ -5529,6 +5655,9 @@ class MainActivity : AppCompatActivity() {
                         "$remaining hits short of today's challenge. One more run can do it.",
                         "Il manque $remaining coups au défi du jour. Un autre round peut suffire.",
                         "ภารกิจวันนี้ยังขาด $remaining หมัด อีกหนึ่งรอบทำได้",
+                        "Faltan $remaining golpes para completar el desafío de hoy. Una sesión más puede bastar.",
+                        "Noch $remaining Schläge bis zur heutigen Herausforderung. Ein weiterer Durchgang kann reichen.",
+                        "오늘의 도전 완료까지 ${remaining}회 남았습니다. 한 번 더 훈련하면 달성할 수 있습니다.",
                     )
                 }
             }
@@ -5567,9 +5696,20 @@ class MainActivity : AppCompatActivity() {
         ensureDailyTaskDate()
         val targetText =
             targetHits?.let {
-                localText("本轮目标 $it 击", "Target $it hits", "Objectif $it coups", "เป้าหมายรอบนี้ $it หมัด")
+                localText(
+                    "本轮目标 $it 击",
+                    "Target $it hits",
+                    "Objectif $it coups",
+                    "เป้าหมายรอบนี้ $it หมัด",
+                    "Objetivo: $it golpes",
+                    "Ziel $it Treffer",
+                    "대상 $it 타격 수",
+                )
             } ?: localText("自由训练", "Free training", "Entraînement libre", "ฝึกอิสระ")
         return localText(
+            "$targetText | ${dailyTaskSummaryText()} | ${sevenDayTrendText()}",
+            "$targetText | ${dailyTaskSummaryText()} | ${sevenDayTrendText()}",
+            "$targetText | ${dailyTaskSummaryText()} | ${sevenDayTrendText()}",
             "$targetText | ${dailyTaskSummaryText()} | ${sevenDayTrendText()}",
             "$targetText | ${dailyTaskSummaryText()} | ${sevenDayTrendText()}",
             "$targetText | ${dailyTaskSummaryText()} | ${sevenDayTrendText()}",
@@ -5592,6 +5732,9 @@ class MainActivity : AppCompatActivity() {
             "Daily tasks $doneCount/3 | Streak $streak | XP $xp",
             "Tâches du jour $doneCount/3 | Série $streak | XP $xp",
             "ภารกิจวันนี้ $doneCount/3 | ต่อเนื่อง $streak วัน | XP $xp",
+            "Tareas diarias $doneCount/3 | Racha $streak | XP $xp",
+            "Tägliche Aufgaben $doneCount/3 | Serie $streak | XP $xp",
+            "일일 작업 $doneCount/3 | 연속 $streak | XP $xp",
         )
     }
 
@@ -5742,6 +5885,9 @@ class MainActivity : AppCompatActivity() {
                     "7-day trend: +${String.format(Locale.US, "%.1f", diff)}",
                     "Tendance 7 j : +${String.format(Locale.US, "%.1f", diff)}",
                     "แนวโน้ม 7 วัน: +${String.format(Locale.US, "%.1f", diff)}",
+                    "Tendencia de 7 días: +${String.format(Locale.US, "%.1f", diff)}",
+                    "7-Tage-Trend: +${String.format(Locale.US, "%.1f", diff)}",
+                    "7일 추세: +${String.format(Locale.US, "%.1f", diff)}",
                 )
 
             diff <= -2.0 ->
@@ -5750,6 +5896,9 @@ class MainActivity : AppCompatActivity() {
                     "7-day trend: ${String.format(Locale.US, "%.1f", diff)}",
                     "Tendance 7 j : ${String.format(Locale.US, "%.1f", diff)}",
                     "แนวโน้ม 7 วัน: ${String.format(Locale.US, "%.1f", diff)}",
+                    "Tendencia de 7 días: ${String.format(Locale.US, "%.1f", diff)}",
+                    "7-Tage-Trend: ${String.format(Locale.US, "%.1f", diff)}",
+                    "7일 추세: ${String.format(Locale.US, "%.1f", diff)}",
                 )
 
             else ->
@@ -5769,11 +5918,17 @@ class MainActivity : AppCompatActivity() {
         english: String,
         french: String,
         thai: String,
+        spanish: String? = null,
+        german: String? = null,
+        korean: String? = null,
     ): String =
         when (selectedLanguage) {
             AppLanguage.Chinese -> chinese
             AppLanguage.English -> english
             AppLanguage.French -> french
+            AppLanguage.Spanish -> spanish ?: AdditionalUiStrings.get(selectedLanguage, english) ?: english
+            AppLanguage.German -> german ?: AdditionalUiStrings.get(selectedLanguage, english) ?: english
+            AppLanguage.Korean -> korean ?: AdditionalUiStrings.get(selectedLanguage, english) ?: english
             AppLanguage.Thai -> thai
         }
 
@@ -5869,6 +6024,9 @@ class MainActivity : AppCompatActivity() {
             "Recent badges: $names",
             "Badges récents : $names",
             "เหรียญล่าสุด: $names",
+            "Insignias recientes: $names",
+            "Aktuelle Abzeichen: $names",
+            "최근 배지: $names",
         )
     }
 
@@ -6104,6 +6262,33 @@ class MainActivity : AppCompatActivity() {
                     "calories" -> "Calories brûlées"
                     else -> "Graisse équivalente"
                 }
+            AppLanguage.Spanish ->
+                when (key) {
+                    "duration" -> "Duración del entrenamiento"
+                    "total_hits" -> "Golpes acumulados"
+                    "peak_force" -> "Puntuación máxima de potencia relativa"
+                    "avg_force" -> "Puntuación media de potencia relativa"
+                    "calories" -> "Calorías quemadas"
+                    else -> "Grasa equivalente"
+                }
+            AppLanguage.German ->
+                when (key) {
+                    "duration" -> "Trainingsdauer"
+                    "total_hits" -> "Schläge gesamt"
+                    "peak_force" -> "Höchste relative Kraftwertung"
+                    "avg_force" -> "Durchschnittliche relative Kraftwertung"
+                    "calories" -> "Verbrannte Kalorien"
+                    else -> "Äquivalente Fettverbrennung"
+                }
+            AppLanguage.Korean ->
+                when (key) {
+                    "duration" -> "훈련 시간"
+                    "total_hits" -> "누적 타격 수"
+                    "peak_force" -> "최고 상대 파워 점수"
+                    "avg_force" -> "평균 상대 파워 점수"
+                    "calories" -> "소모 칼로리"
+                    else -> "환산 지방 연소량"
+                }
             AppLanguage.Thai ->
                 when (key) {
                     "duration" -> "ระยะเวลาฝึก"
@@ -6127,9 +6312,12 @@ class MainActivity : AppCompatActivity() {
     private fun achievementsRecentUnlockedTitle(): String =
         when (selectedLanguage) {
             AppLanguage.Chinese -> "最近解锁"
+            AppLanguage.English -> "Recently unlocked"
             AppLanguage.French -> "Déblocages récents"
+            AppLanguage.Spanish -> "Desbloqueadas recientemente"
+            AppLanguage.German -> "Kürzlich freigeschaltet"
+            AppLanguage.Korean -> "최근 잠금 해제"
             AppLanguage.Thai -> "ปลดล็อกล่าสุด"
-            else -> "Recently unlocked"
         }
 
     private fun achievementTierHeroCard(
@@ -6174,6 +6362,9 @@ class MainActivity : AppCompatActivity() {
                 "Best round: $bestRoundHits | $remaining hits to ${tierLabelForKey(tier.nextKey)}",
                 "Meilleur round : $bestRoundHits | Encore $remaining coups pour ${tierLabelForKey(tier.nextKey)}",
                 "รอบดีที่สุด: $bestRoundHits | อีก $remaining ครั้งจะถึง ${tierLabelForKey(tier.nextKey)}",
+                "Mejor ronda: $bestRoundHits | Faltan $remaining golpes para ${tierLabelForKey(tier.nextKey)}",
+                "Beste Runde: $bestRoundHits | Noch $remaining Schläge bis ${tierLabelForKey(tier.nextKey)}",
+                "최고 라운드: $bestRoundHits | ${tierLabelForKey(tier.nextKey)}까지 ${remaining}회 남음",
             )
         } else {
             localText(
@@ -6181,6 +6372,9 @@ class MainActivity : AppCompatActivity() {
                 "Best round: $bestRoundHits | Top tier reached",
                 "Meilleur round : $bestRoundHits | Rang maximum atteint",
                 "รอบดีที่สุด: $bestRoundHits | ถึงระดับสูงสุดแล้ว",
+                "Mejor ronda: $bestRoundHits | Nivel superior alcanzado",
+                "Beste Runde: $bestRoundHits | Höchste Stufe erreicht",
+                "베스트 라운드: $bestRoundHits | 최상위 등급에 도달함",
             )
         }
     }
@@ -6446,6 +6640,33 @@ class MainActivity : AppCompatActivity() {
                     LeaderboardBoard.Calories -> "Calories"
                     LeaderboardBoard.FatBurned -> "Graisse équiv."
                 }
+            AppLanguage.Spanish ->
+                when (board) {
+                    LeaderboardBoard.TrainingDuration -> "Duración"
+                    LeaderboardBoard.TotalHits -> "Golpes totales"
+                    LeaderboardBoard.PeakForce -> "Puntuación máxima"
+                    LeaderboardBoard.AvgForce -> "Puntuación media"
+                    LeaderboardBoard.Calories -> "Calorías"
+                    LeaderboardBoard.FatBurned -> "Grasa equivalente"
+                }
+            AppLanguage.German ->
+                when (board) {
+                    LeaderboardBoard.TrainingDuration -> "Dauer"
+                    LeaderboardBoard.TotalHits -> "Schläge gesamt"
+                    LeaderboardBoard.PeakForce -> "Höchstwertung"
+                    LeaderboardBoard.AvgForce -> "Durchschnittswertung"
+                    LeaderboardBoard.Calories -> "Kalorien"
+                    LeaderboardBoard.FatBurned -> "Fett äquivalent"
+                }
+            AppLanguage.Korean ->
+                when (board) {
+                    LeaderboardBoard.TrainingDuration -> "훈련 시간"
+                    LeaderboardBoard.TotalHits -> "누적 타격"
+                    LeaderboardBoard.PeakForce -> "최고 점수"
+                    LeaderboardBoard.AvgForce -> "평균 점수"
+                    LeaderboardBoard.Calories -> "칼로리"
+                    LeaderboardBoard.FatBurned -> "환산 지방"
+                }
             AppLanguage.Thai ->
                 when (board) {
                     LeaderboardBoard.TrainingDuration -> "ระยะเวลา"
@@ -6486,6 +6707,33 @@ class MainActivity : AppCompatActivity() {
                     LeaderboardBoard.Calories -> "Classement par calories totales"
                     LeaderboardBoard.FatBurned -> "Classement par graisse équivalente totale"
                 }
+            AppLanguage.Spanish ->
+                when (board) {
+                    LeaderboardBoard.TrainingDuration -> "Clasificación por tiempo total de entrenamiento"
+                    LeaderboardBoard.TotalHits -> "Clasificación por golpes acumulados"
+                    LeaderboardBoard.PeakForce -> "Clasificación por puntuación máxima de potencia relativa"
+                    LeaderboardBoard.AvgForce -> "Clasificación por mejor puntuación media de potencia relativa"
+                    LeaderboardBoard.Calories -> "Clasificación por calorías totales"
+                    LeaderboardBoard.FatBurned -> "Clasificación por grasa equivalente total"
+                }
+            AppLanguage.German ->
+                when (board) {
+                    LeaderboardBoard.TrainingDuration -> "Rang nach gesamter Trainingszeit"
+                    LeaderboardBoard.TotalHits -> "Rang nach gesamter Schlagzahl"
+                    LeaderboardBoard.PeakForce -> "Rang nach höchster relativer Kraftwertung"
+                    LeaderboardBoard.AvgForce -> "Rang nach bester durchschnittlicher Kraftwertung"
+                    LeaderboardBoard.Calories -> "Rang nach insgesamt verbrannten Kalorien"
+                    LeaderboardBoard.FatBurned -> "Rang nach gesamter äquivalenter Fettverbrennung"
+                }
+            AppLanguage.Korean ->
+                when (board) {
+                    LeaderboardBoard.TrainingDuration -> "누적 훈련 시간 순위"
+                    LeaderboardBoard.TotalHits -> "누적 타격 수 순위"
+                    LeaderboardBoard.PeakForce -> "최고 상대 파워 점수 순위"
+                    LeaderboardBoard.AvgForce -> "최고 평균 상대 파워 점수 순위"
+                    LeaderboardBoard.Calories -> "누적 칼로리 순위"
+                    LeaderboardBoard.FatBurned -> "누적 환산 지방 연소량 순위"
+                }
             AppLanguage.Thai ->
                 when (board) {
                     LeaderboardBoard.TrainingDuration -> "จัดอันดับตามเวลาฝึกสะสม"
@@ -6525,6 +6773,9 @@ class MainActivity : AppCompatActivity() {
                     "${entry.bestHits} total hits",
                     "${entry.bestHits} coups cumulés",
                     "รวม ${entry.bestHits} หมัด",
+                    "${entry.bestHits} golpes totales",
+                    "${entry.bestHits} Gesamttreffer",
+                    "${entry.bestHits} 총 타격 수",
                 )
             LeaderboardBoard.PeakForce -> entry.scoreValue.roundToInt().toString()
             LeaderboardBoard.AvgForce -> entry.scoreValue.roundToInt().toString()
@@ -6540,6 +6791,9 @@ class MainActivity : AppCompatActivity() {
                     "${entry.totalHits} total hits",
                     "${entry.totalHits} coups cumulés",
                     "รวม ${entry.totalHits} หมัด",
+                    "${entry.totalHits} golpes totales",
+                    "${entry.totalHits} Gesamttreffer",
+                    "${entry.totalHits} 총 타격 수",
                 )
             LeaderboardBoard.TotalHits ->
                 localText(
@@ -6547,6 +6801,9 @@ class MainActivity : AppCompatActivity() {
                     "Best burst ${entry.bestBurstCount}",
                     "Meilleure rafale ${entry.bestBurstCount}",
                     "เบิร์สต์สูงสุด ${entry.bestBurstCount}",
+                    "Mejor ráfaga ${entry.bestBurstCount}",
+                    "Bester Burst ${entry.bestBurstCount}",
+                    "베스트 버스트 ${entry.bestBurstCount}",
                 )
             LeaderboardBoard.PeakForce, LeaderboardBoard.AvgForce ->
                 localText(
@@ -6554,6 +6811,9 @@ class MainActivity : AppCompatActivity() {
                     "Best pace ${String.format(Locale.US, "%.2f", entry.averageFrequency)} hits/s",
                     "Meilleur rythme ${String.format(Locale.US, "%.2f", entry.averageFrequency)} coups/s",
                     "จังหวะสูงสุด ${String.format(Locale.US, "%.2f", entry.averageFrequency)} หมัด/วิ",
+                    "Mejor ritmo ${String.format(Locale.US, "%.2f", entry.averageFrequency)} golpes/s",
+                    "Bestes Tempo ${String.format(Locale.US, "%.2f", entry.averageFrequency)} Treffer/s",
+                    "최고 속도 ${String.format(Locale.US, "%.2f", entry.averageFrequency)} 타격/초",
                 )
         }
 
@@ -6570,6 +6830,9 @@ class MainActivity : AppCompatActivity() {
                 AppLanguage.Chinese -> "MM-dd HH:mm"
                 AppLanguage.English -> "MMM dd, HH:mm"
                 AppLanguage.French -> "dd MMM HH:mm"
+                AppLanguage.Spanish -> "dd MMM HH:mm"
+                AppLanguage.German -> "dd. MMM HH:mm"
+                AppLanguage.Korean -> "MM-dd HH:mm"
                 AppLanguage.Thai -> "dd/MM HH:mm"
             }
         return SimpleDateFormat(pattern, localeForLanguage()).apply {
@@ -7117,6 +7380,9 @@ class MainActivity : AppCompatActivity() {
                     "${device.name}·Battery ${currentBluetoothBatteryText()}·Connected",
                     "${device.name}·Batterie ${currentBluetoothBatteryText()}·Connecté",
                     "${device.name}·แบต ${currentBluetoothBatteryText()}·เชื่อมต่อแล้ว",
+                    "${device.name}·Batería ${currentBluetoothBatteryText()}·Conectada",
+                    "${device.name}·Batterie ${currentBluetoothBatteryText()}·Angeschlossen",
+                    "${device.name}·배터리 ${currentBluetoothBatteryText()}·연결됨",
                 )
             } ?: localText(
                 "没有连接蓝牙设备",
@@ -7155,6 +7421,9 @@ class MainActivity : AppCompatActivity() {
                     "Next badge: ${achievementDisplayName(it.key)}",
                     "Prochain badge : ${achievementDisplayName(it.key)}",
                     "เหรียญถัดไป: ${achievementDisplayName(it.key)}",
+                    "Siguiente insignia: ${achievementDisplayName(it.key)}",
+                    "Nächstes Abzeichen: ${achievementDisplayName(it.key)}",
+                    "다음 배지: ${achievementDisplayName(it.key)}",
                 )
             } ?: localText(
                 "全部徽章已解锁",
@@ -7861,6 +8130,9 @@ class MainActivity : AppCompatActivity() {
                 AppLanguage.Chinese -> "MM-dd HH:mm"
                 AppLanguage.English -> "MMM dd, HH:mm"
                 AppLanguage.French -> "dd MMM HH:mm"
+                AppLanguage.Spanish -> "dd MMM HH:mm"
+                AppLanguage.German -> "dd. MMM HH:mm"
+                AppLanguage.Korean -> "MM-dd HH:mm"
                 AppLanguage.Thai -> "dd/MM HH:mm"
             }
         return SimpleDateFormat(pattern, localeForLanguage()).format(Date(epochMs))
@@ -8158,6 +8430,9 @@ class MainActivity : AppCompatActivity() {
                 "Rounds: ${pending.workMinutes} min work | $rest min rest | ${pending.rounds} rounds\nMode: $modeText\nTempo: ${pending.bpm} BPM\nEstimated total: $totalText min",
                 "Rounds : ${pending.workMinutes} min travail | $rest min repos | ${pending.rounds}\nMode : $modeText\nTempo : ${pending.bpm} BPM\nTotal estimé : $totalText min",
                 "รอบ: ชก ${pending.workMinutes} นาที | พัก $rest นาที | ${pending.rounds} รอบ\nโหมด: $modeText\nจังหวะ: ${pending.bpm} BPM\nเวลารวม: $totalText นาที",
+                "Rondas: ${pending.workMinutes} min de trabajo | $rest min de descanso | ${pending.rounds} rondas\nModo: $modeText\nTempo: ${pending.bpm} BPM\nTotal estimado: $totalText min",
+                "Runden: ${pending.workMinutes} Min. Training | $rest Min. Pause | ${pending.rounds} Runden\nModus: $modeText\nTempo: ${pending.bpm} BPM\nGeschätzte Gesamtdauer: $totalText Min.",
+                "라운드: 운동 ${pending.workMinutes}분 | 휴식 ${rest}분 | ${pending.rounds}라운드\n모드: $modeText\n템포: ${pending.bpm} BPM\n예상 총 시간: ${totalText}분",
             )
         }
 
@@ -8375,6 +8650,27 @@ class MainActivity : AppCompatActivity() {
                 isChecked = selectedLanguage == AppLanguage.French
                 styleSettingsRadioButton(this)
             }
+        val esOption =
+            RadioButton(this).apply {
+                id = View.generateViewId()
+                text = tr("language_spanish")
+                isChecked = selectedLanguage == AppLanguage.Spanish
+                styleSettingsRadioButton(this)
+            }
+        val deOption =
+            RadioButton(this).apply {
+                id = View.generateViewId()
+                text = tr("language_german")
+                isChecked = selectedLanguage == AppLanguage.German
+                styleSettingsRadioButton(this)
+            }
+        val koOption =
+            RadioButton(this).apply {
+                id = View.generateViewId()
+                text = tr("language_korean")
+                isChecked = selectedLanguage == AppLanguage.Korean
+                styleSettingsRadioButton(this)
+            }
         val thOption =
             RadioButton(this).apply {
                 id = View.generateViewId()
@@ -8383,11 +8679,14 @@ class MainActivity : AppCompatActivity() {
                 styleSettingsRadioButton(this)
             }
         languageGroup.setOnCheckedChangeListener { _, _ ->
-            listOf(zhOption, enOption, frOption, thOption).forEach(::styleSettingsRadioButton)
+            listOf(zhOption, enOption, frOption, esOption, deOption, koOption, thOption).forEach(::styleSettingsRadioButton)
         }
         languageGroup.addView(zhOption)
         languageGroup.addView(enOption)
         languageGroup.addView(frOption)
+        languageGroup.addView(esOption)
+        languageGroup.addView(deOption)
+        languageGroup.addView(koOption)
         languageGroup.addView(thOption)
         languageCard.addView(languageGroup)
         dialogRoot.addView(languageCard)
@@ -8556,6 +8855,9 @@ class MainActivity : AppCompatActivity() {
                         when (languageGroup.checkedRadioButtonId) {
                             enOption.id -> AppLanguage.English
                             frOption.id -> AppLanguage.French
+                            esOption.id -> AppLanguage.Spanish
+                            deOption.id -> AppLanguage.German
+                            koOption.id -> AppLanguage.Korean
                             thOption.id -> AppLanguage.Thai
                             else -> AppLanguage.Chinese
                     },
@@ -9174,7 +9476,15 @@ class MainActivity : AppCompatActivity() {
         batteryHeaderView.setTextColor(Color.parseColor(if (connected) "#FFFFFF" else "#AAB3C2"))
         batteryHeaderView.setBackgroundResource(R.drawable.battery_status_background)
         batteryHeaderView.contentDescription =
-            localText("电量 $batteryText", "Battery $batteryText", "Batterie $batteryText", "แบตเตอรี่ $batteryText")
+            localText(
+                "电量 $batteryText",
+                "Battery $batteryText",
+                "Batterie $batteryText",
+                "แบตเตอรี่ $batteryText",
+                "Batería $batteryText",
+                "Batterie $batteryText",
+                "배터리 $batteryText",
+            )
     }
 
     private fun updateBluetoothActionButtons() {
@@ -9198,7 +9508,15 @@ class MainActivity : AppCompatActivity() {
             raw == 101 -> localText("充电", "Charging", "En charge", "กำลังชาร์จ")
             raw == 102 -> localText("充满", "Full", "Chargée", "เต็มแล้ว")
             raw in 0..100 && chargingFlagRaw == 1 ->
-                localText("充电 $raw%", "Charging $raw%", "En charge $raw%", "กำลังชาร์จ $raw%")
+                localText(
+                    "充电 $raw%",
+                    "Charging $raw%",
+                    "En charge $raw%",
+                    "กำลังชาร์จ $raw%",
+                    "Cargando $raw%",
+                    "Laden $raw%",
+                    "$raw% 충전 중",
+                )
             raw in 0..100 -> "$raw%"
             else -> "--"
         }
@@ -9210,7 +9528,15 @@ class MainActivity : AppCompatActivity() {
                 bluetoothDevicesFoundText(count)
             }
             message.startsWith("扫描失败：") ->
-                localText("扫描失败：${message.substringAfter("扫描失败：")}", "Scan failed: ${message.substringAfter("扫描失败：")}", "Échec du scan : ${message.substringAfter("扫描失败：")}", "สแกนไม่สำเร็จ: ${message.substringAfter("扫描失败：")}")
+                localText(
+                    "扫描失败：${message.substringAfter("扫描失败：")}",
+                    "Scan fehlgeschlagen: ${message.substringAfter("扫描失败：")}",
+                    "Échec du scan : ${message.substringAfter("扫描失败：")}",
+                    "สแกนไม่สำเร็จ: ${message.substringAfter("扫描失败：")}",
+                    "Error de escaneo: ${message.substringAfter("扫描失败：")}",
+                    "Scan fehlgeschlagen: ${message.substringAfter("扫描失败：")}",
+                    "스캔 실패: ${message.substringAfter("扫描失败：")}",
+                )
             message == "蓝牙未开启" ->
                 localText("蓝牙未开启", "Bluetooth is off", "Bluetooth désactivé", "บลูทูธปิดอยู่")
             message == "正在扫描 SENWALL# 设备..." ->
@@ -9218,7 +9544,15 @@ class MainActivity : AppCompatActivity() {
             message == "设备地址无效" ->
                 localText("设备地址无效", "Invalid device address", "Adresse appareil invalide", "ที่อยู่อุปกรณ์ไม่ถูกต้อง")
             message.startsWith("正在连接 ") ->
-                localText("正在连接 ${message.substringAfter("正在连接 ")}", "Connecting ${message.substringAfter("正在连接 ")}", "Connexion ${message.substringAfter("正在连接 ")}", "กำลังเชื่อมต่อ ${message.substringAfter("正在连接 ")}")
+                localText(
+                    "正在连接 ${message.substringAfter("正在连接 ")}",
+                    "Connecting ${message.substringAfter("正在连接 ")}",
+                    "Connexion ${message.substringAfter("正在连接 ")}",
+                    "กำลังเชื่อมต่อ ${message.substringAfter("正在连接 ")}",
+                    "Conexión de ${message.substringAfter("正在连接 ")}",
+                    "Verbindung zu ${message.substringAfter("正在连接 ")}",
+                    "${message.substringAfter("正在连接 ")} 연결 중",
+                )
             message == "请先连接蓝牙设备" ->
                 bluetoothConnectFirstText()
             message == "未找到可写入的蓝牙通道" ->
@@ -9240,10 +9574,26 @@ class MainActivity : AppCompatActivity() {
             message == "已连接，正在发现服务..." ->
                 localText("已连接，正在发现服务...", "Connected. Discovering services...", "Connecté. Recherche des services...", "เชื่อมต่อแล้ว กำลังค้นหาบริการ...")
             message.startsWith("服务发现失败：") ->
-                localText("服务发现失败：${message.substringAfter("服务发现失败：")}", "Service discovery failed: ${message.substringAfter("服务发现失败：")}", "Échec découverte services : ${message.substringAfter("服务发现失败：")}", "ค้นหาบริการไม่สำเร็จ: ${message.substringAfter("服务发现失败：")}")
+                localText(
+                    "服务发现失败：${message.substringAfter("服务发现失败：")}",
+                    "Service discovery failed: ${message.substringAfter("服务发现失败：")}",
+                    "Échec découverte services : ${message.substringAfter("服务发现失败：")}",
+                    "ค้นหาบริการไม่สำเร็จ: ${message.substringAfter("服务发现失败：")}",
+                    "Error en el descubrimiento del servicio: ${message.substringAfter("服务发现失败：")}",
+                    "Diensterkennung fehlgeschlagen: ${message.substringAfter("服务发现失败：")}",
+                    "서비스 검색 실패: ${message.substringAfter("服务发现失败：")}",
+                )
             message.startsWith("蓝牙已就绪，通知通道 ") && message.endsWith(" 个") -> {
                 val count = message.substringAfter("蓝牙已就绪，通知通道 ").substringBefore(" 个").toIntOrNull() ?: 0
-                localText("蓝牙已就绪，通知通道 $count 个", "Bluetooth ready, $count notify channel(s)", "Bluetooth prêt, $count canal(aux) de notification", "บลูทูธพร้อม ช่องแจ้งเตือน $count ช่อง")
+                localText(
+                    "蓝牙已就绪，通知通道 $count 个",
+                    "Bluetooth ready, $count notify channel(s)",
+                    "Bluetooth prêt, $count canal(aux) de notification",
+                    "บลูทูธพร้อม ช่องแจ้งเตือน $count ช่อง",
+                    "Bluetooth listo, $count canal(es) de notificación",
+                    "Bluetooth bereit, $count Benachrichtigungskanal/-kanäle",
+                    "Bluetooth 준비됨, $count 알림 채널",
+                )
             }
             message == "BLE连接失败，尝试经典蓝牙..." ->
                 localText("BLE连接失败，尝试经典蓝牙...", "BLE failed. Trying Classic Bluetooth...", "BLE échoué. Essai Bluetooth classique...", "BLE ไม่สำเร็จ กำลังลองบลูทูธคลาสสิก...")
@@ -9413,10 +9763,14 @@ class MainActivity : AppCompatActivity() {
             listOf(
                 Manifest.permission.BLUETOOTH_SCAN,
                 Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.ACCESS_COARSE_LOCATION,
                 Manifest.permission.ACCESS_FINE_LOCATION,
             )
         } else {
-            listOf(Manifest.permission.ACCESS_FINE_LOCATION)
+            listOf(
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+            )
         }
 
     private fun bluetoothSectionTitle(): String =
@@ -9469,7 +9823,15 @@ class MainActivity : AppCompatActivity() {
         localText("请先扫描并选择设备", "Scan and select a device first", "Scannez puis sélectionnez un appareil", "โปรดสแกนและเลือกอุปกรณ์ก่อน")
 
     private fun bluetoothDeviceSelectedText(name: String): String =
-        localText("已选择 $name", "Selected $name", "$name sélectionné", "เลือก $name แล้ว")
+        localText(
+            "已选择 $name",
+            "Selected $name",
+            "$name sélectionné",
+            "เลือก $name แล้ว",
+            "Seleccionado $name",
+            "Ausgewählt: $name",
+            "${name}를 선택했습니다.",
+        )
 
     private fun bluetoothPermissionDeniedText(): String =
         localText("未获得蓝牙权限，无法连接设备。", "Bluetooth permission is required to connect.", "L'autorisation Bluetooth est nécessaire pour se connecter.", "ต้องอนุญาตบลูทูธเพื่อเชื่อมต่อ")
@@ -9478,13 +9840,37 @@ class MainActivity : AppCompatActivity() {
         localText("请先在设置中连接蓝牙设备。", "Connect the Bluetooth device in Settings first.", "Connectez d'abord l'appareil Bluetooth dans les paramètres.", "โปรดเชื่อมต่ออุปกรณ์บลูทูธในตั้งค่าก่อน")
 
     private fun bluetoothAutoSelectedText(name: String): String =
-        localText("已自动选择 $name", "Auto-selected $name", "$name sélectionné automatiquement", "เลือก $name โดยอัตโนมัติ")
+        localText(
+            "已自动选择 $name",
+            "Auto-selected $name",
+            "$name sélectionné automatiquement",
+            "เลือก $name โดยอัตโนมัติ",
+            "$name seleccionado automáticamente",
+            "Automatisch ausgewählt $name",
+            "자동 선택 $name",
+        )
 
     private fun bluetoothDevicesFoundText(count: Int): String =
-        localText("已扫描到 $count 个设备，请选择设备", "$count devices found. Select one.", "$count appareils trouvés. Sélectionnez-en un.", "พบอุปกรณ์ $count เครื่อง โปรดเลือกอุปกรณ์")
+        localText(
+            "已扫描到 $count 个设备，请选择设备",
+            "$count devices found. Select one.",
+            "$count appareils trouvés. Sélectionnez-en un.",
+            "พบอุปกรณ์ $count เครื่อง โปรดเลือกอุปกรณ์",
+            "Se encontraron $count dispositivos. Selecciona uno.",
+            "$count Geräte gefunden. Wähle eines aus.",
+            "$count 장치를 찾았습니다. 하나를 선택하세요.",
+        )
 
     private fun bluetoothConnectedText(name: String): String =
-        localText("已连接 $name", "Connected to $name", "Connecté à $name", "เชื่อมต่อกับ $name แล้ว")
+        localText(
+            "已连接 $name",
+            "Connected to $name",
+            "Connecté à $name",
+            "เชื่อมต่อกับ $name แล้ว",
+            "Conectado a $name",
+            "Verbunden mit $name",
+            "${name}에 연결됨",
+        )
 
     private fun bluetoothTrainingReconnectText(): String =
         localText(
@@ -9500,16 +9886,35 @@ class MainActivity : AppCompatActivity() {
             "Reconnected during training: $name",
             "Reconnecté pendant l'entraînement : $name",
             "เชื่อมต่อใหม่ระหว่างฝึก: $name",
+            "Reconectado durante el entrenamiento: $name",
+            "Während des Trainings erneut verbunden: $name",
+            "훈련 중에 다시 연결됨: $name",
         )
 
     private fun bluetoothDisconnectedText(): String =
         localText("蓝牙已断开", "Bluetooth disconnected", "Bluetooth déconnecté", "ตัดการเชื่อมต่อบลูทูธแล้ว")
 
     private fun bluetoothPacketReceivedText(packetIndex: Int): String =
-        localText("已接收数据包 $packetIndex", "Packet $packetIndex received", "Paquet $packetIndex reçu", "ได้รับแพ็กเก็ต $packetIndex แล้ว")
+        localText(
+            "已接收数据包 $packetIndex",
+            "Packet $packetIndex received",
+            "Paquet $packetIndex reçu",
+            "ได้รับแพ็กเก็ต $packetIndex แล้ว",
+            "Paquete $packetIndex recibido",
+            "Paket $packetIndex empfangen",
+            "패킷 $packetIndex 수신됨",
+        )
 
     private fun bluetoothAutoConnectingText(name: String): String =
-        localText("正在自动连接上次设备 $name...", "Auto-connecting last device $name...", "Connexion automatique au dernier appareil $name...", "กำลังเชื่อมต่ออุปกรณ์ล่าสุด $name อัตโนมัติ...")
+        localText(
+            "正在自动连接上次设备 $name...",
+            "Auto-connecting last device $name...",
+            "Connexion automatique au dernier appareil $name...",
+            "กำลังเชื่อมต่ออุปกรณ์ล่าสุด $name อัตโนมัติ...",
+            "Conexión automática del último dispositivo $name...",
+            "Letztes Gerät $name wird automatisch verbunden...",
+            "마지막 장치 $name 자동 연결 중...",
+        )
 
     private fun settingsDialogTitle(): String =
         localText("蓝牙与语言设置", "Bluetooth and Language", "Bluetooth et langue", "บลูทูธและภาษา")
@@ -9592,6 +9997,27 @@ class MainActivity : AppCompatActivity() {
                 isChecked = selectedLanguage == AppLanguage.French
                 setTextColor(Color.WHITE)
             }
+        val esOption =
+            RadioButton(this).apply {
+                id = View.generateViewId()
+                text = tr("language_spanish")
+                isChecked = selectedLanguage == AppLanguage.Spanish
+                setTextColor(Color.WHITE)
+            }
+        val deOption =
+            RadioButton(this).apply {
+                id = View.generateViewId()
+                text = tr("language_german")
+                isChecked = selectedLanguage == AppLanguage.German
+                setTextColor(Color.WHITE)
+            }
+        val koOption =
+            RadioButton(this).apply {
+                id = View.generateViewId()
+                text = tr("language_korean")
+                isChecked = selectedLanguage == AppLanguage.Korean
+                setTextColor(Color.WHITE)
+            }
         val thOption =
             RadioButton(this).apply {
                 id = View.generateViewId()
@@ -9602,6 +10028,9 @@ class MainActivity : AppCompatActivity() {
         languageGroup.addView(zhOption)
         languageGroup.addView(enOption)
         languageGroup.addView(frOption)
+        languageGroup.addView(esOption)
+        languageGroup.addView(deOption)
+        languageGroup.addView(koOption)
         languageGroup.addView(thOption)
         dialogRoot.addView(languageGroup)
 
@@ -9720,6 +10149,9 @@ class MainActivity : AppCompatActivity() {
                         when (languageGroup.checkedRadioButtonId) {
                             enOption.id -> AppLanguage.English
                             frOption.id -> AppLanguage.French
+                            esOption.id -> AppLanguage.Spanish
+                            deOption.id -> AppLanguage.German
+                            koOption.id -> AppLanguage.Korean
                             thOption.id -> AppLanguage.Thai
                             else -> AppLanguage.Chinese
                         },
@@ -9861,6 +10293,9 @@ class MainActivity : AppCompatActivity() {
                                 "Loaded ${cloudSoundEffects.size} cloud effects.",
                                 "${cloudSoundEffects.size} sons chargés.",
                                 "โหลดเสียงแล้ว ${cloudSoundEffects.size} รายการ",
+                                "Se cargaron ${cloudSoundEffects.size} efectos de la nube.",
+                                "${cloudSoundEffects.size} Cloud-Effekte geladen.",
+                                "${cloudSoundEffects.size} 클라우드 효과를 로드했습니다.",
                             )
                         val selected = cloudSoundEffects.firstOrNull { it.id == selectedCloudSoundEffectId }
                         when {
@@ -9883,6 +10318,9 @@ class MainActivity : AppCompatActivity() {
                                     "Cloud effects failed: ${result.message}",
                                     "Échec des sons cloud : ${result.message}",
                                     "โหลดเสียงไม่สำเร็จ: ${result.message}",
+                                    "Los efectos de la nube fallaron: ${result.message}",
+                                    "Cloud-Effekte fehlgeschlagen: ${result.message}",
+                                    "클라우드 효과 로드 실패: ${result.message}",
                                 )
                             }
                     }
@@ -9897,6 +10335,9 @@ class MainActivity : AppCompatActivity() {
                 AppLanguage.Chinese -> effect.nameZh.ifBlank { effect.nameEn }
                 AppLanguage.English,
                 AppLanguage.French,
+                AppLanguage.Spanish,
+                AppLanguage.German,
+                AppLanguage.Korean,
                 AppLanguage.Thai,
                 -> effect.nameEn.ifBlank { effect.nameZh }
             }
@@ -9907,6 +10348,9 @@ class MainActivity : AppCompatActivity() {
                 AppLanguage.Chinese -> effect.descriptionZh.ifBlank { effect.descriptionEn }
                 AppLanguage.English,
                 AppLanguage.French,
+                AppLanguage.Spanish,
+                AppLanguage.German,
+                AppLanguage.Korean,
                 AppLanguage.Thai,
                 -> effect.descriptionEn.ifBlank { effect.descriptionZh }
             }
@@ -10117,6 +10561,9 @@ class MainActivity : AppCompatActivity() {
                                 "Loaded ${cloudBackgroundMusic.size} background tracks.",
                                 "${cloudBackgroundMusic.size} musiques chargées.",
                                 "โหลดเพลงพื้นหลังแล้ว ${cloudBackgroundMusic.size} รายการ",
+                                "Pistas de fondo ${cloudBackgroundMusic.size} cargadas.",
+                                "${cloudBackgroundMusic.size} Hintergrundtitel geladen.",
+                                "${cloudBackgroundMusic.size} 배경 트랙을 로드했습니다.",
                             )
                     } else {
                         cloudBackgroundMusic = bundledBackgroundMusic()
@@ -10134,6 +10581,9 @@ class MainActivity : AppCompatActivity() {
                                     "Background music failed: ${result.message}",
                                     "Échec musique : ${result.message}",
                                     "โหลดเพลงไม่สำเร็จ: ${result.message}",
+                                    "La música de fondo falló: ${result.message}",
+                                    "Hintergrundmusik fehlgeschlagen: ${result.message}",
+                                    "배경 음악 실패: ${result.message}",
                                 )
                             }
                     }
@@ -10149,6 +10599,9 @@ class MainActivity : AppCompatActivity() {
                 AppLanguage.Chinese -> track.nameZh.ifBlank { track.nameEn }
                 AppLanguage.English,
                 AppLanguage.French,
+                AppLanguage.Spanish,
+                AppLanguage.German,
+                AppLanguage.Korean,
                 AppLanguage.Thai,
                 -> track.nameEn.ifBlank { track.nameZh }
             }
@@ -10159,6 +10612,9 @@ class MainActivity : AppCompatActivity() {
                 AppLanguage.Chinese -> track.descriptionZh.ifBlank { track.descriptionEn }
                 AppLanguage.English,
                 AppLanguage.French,
+                AppLanguage.Spanish,
+                AppLanguage.German,
+                AppLanguage.Korean,
                 AppLanguage.Thai,
                 -> track.descriptionEn.ifBlank { track.descriptionZh }
             }
@@ -10354,6 +10810,9 @@ class MainActivity : AppCompatActivity() {
     ) {
         val languageChanged = selectedLanguage != language
         selectedLanguage = language
+        if (languageChanged) {
+            refreshBluetoothStatusMessageForLanguage()
+        }
         saveSettings()
         updateTtsLanguage()
         refreshLocalizedStoredAudioNames()
@@ -10378,6 +10837,15 @@ class MainActivity : AppCompatActivity() {
             cloudStatusFallbackMessage = null
         }
         lastCoachMessage = null
+    }
+
+    private fun refreshBluetoothStatusMessageForLanguage() {
+        bluetoothStatusMessage =
+            when {
+                bluetoothConnectedDevice != null -> bluetoothConnectedText(bluetoothConnectedDevice?.name.orEmpty())
+                trainingJob?.isActive == true -> bluetoothTrainingReconnectText()
+                else -> bluetoothDisconnectedText()
+            }
     }
 
     private fun profileHeroTagText(): String =
@@ -10556,6 +11024,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "分享战报"
             AppLanguage.English -> "Share Report"
             AppLanguage.French -> "Partager"
+            AppLanguage.Spanish -> "Compartir informe"
+            AppLanguage.German -> "Bericht teilen"
+            AppLanguage.Korean -> "보고서 공유"
             AppLanguage.Thai -> "แชร์"
         }
 
@@ -10564,6 +11035,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "分享荣誉"
             AppLanguage.English -> "Share Honors"
             AppLanguage.French -> "Partager"
+            AppLanguage.Spanish -> "Compartir logros"
+            AppLanguage.German -> "Erfolge teilen"
+            AppLanguage.Korean -> "성과 공유"
             AppLanguage.Thai -> "แชร์"
         }
 
@@ -10572,6 +11046,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "分享排名"
             AppLanguage.English -> "Share Rank"
             AppLanguage.French -> "Partager"
+            AppLanguage.Spanish -> "Compartir puesto"
+            AppLanguage.German -> "Rang teilen"
+            AppLanguage.Korean -> "순위 공유"
             AppLanguage.Thai -> "แชร์"
         }
 
@@ -10916,7 +11393,15 @@ class MainActivity : AppCompatActivity() {
                 )
                 statusRow.addView(
                     badgeText(
-                        text = localText("最高评分 ${forceDisplay(report.peakForceN)}", "Peak ${forceDisplay(report.peakForceN)}", "Max ${forceDisplay(report.peakForceN)}", "สูงสุด ${forceDisplay(report.peakForceN)}"),
+                        text = localText(
+                            "最高评分 ${forceDisplay(report.peakForceN)}",
+                            "Peak ${forceDisplay(report.peakForceN)}",
+                            "Max ${forceDisplay(report.peakForceN)}",
+                            "สูงสุด ${forceDisplay(report.peakForceN)}",
+                            "Pico ${forceDisplay(report.peakForceN)}",
+                            "Spitze ${forceDisplay(report.peakForceN)}",
+                            "피크 ${forceDisplay(report.peakForceN)}",
+                        ),
                         textColor = "#FFFFFF",
                         fillColor = "#FF8A32",
                     ).apply {
@@ -11126,14 +11611,30 @@ class MainActivity : AppCompatActivity() {
                     },
                 )
                 addView(
-                    bodyText(localText("当前段位：${currentTierShareLabel()}", "Current tier: ${currentTierShareLabel()}", "Rang actuel : ${currentTierShareLabel()}", "ระดับปัจจุบัน: ${currentTierShareLabel()}")).apply {
+                    bodyText(localText(
+                        "当前段位：${currentTierShareLabel()}",
+                        "Current tier: ${currentTierShareLabel()}",
+                        "Rang actuel : ${currentTierShareLabel()}",
+                        "ระดับปัจจุบัน: ${currentTierShareLabel()}",
+                        "Nivel actual: ${currentTierShareLabel()}",
+                        "Aktuelle Stufe: ${currentTierShareLabel()}",
+                        "현재 등급: ${currentTierShareLabel()}",
+                    )).apply {
                         gravity = Gravity.CENTER
                         setTextColor(Color.parseColor("#557A7D"))
                         setPadding(0, dp(10), 0, 0)
                     },
                 )
                 addView(
-                    bodyText(localText("已解锁徽章：$unlockedCount / ${cloudAchievements.size}", "Unlocked badges: $unlockedCount / ${cloudAchievements.size}", "Badges débloqués : $unlockedCount / ${cloudAchievements.size}", "เหรียญที่ปลดล็อก: $unlockedCount / ${cloudAchievements.size}")).apply {
+                    bodyText(localText(
+                        "已解锁徽章：$unlockedCount / ${cloudAchievements.size}",
+                        "Unlocked badges: $unlockedCount / ${cloudAchievements.size}",
+                        "Badges débloqués : $unlockedCount / ${cloudAchievements.size}",
+                        "เหรียญที่ปลดล็อก: $unlockedCount / ${cloudAchievements.size}",
+                        "Insignias desbloqueadas: $unlockedCount / ${cloudAchievements.size}",
+                        "Freigeschaltete Abzeichen: $unlockedCount / ${cloudAchievements.size}",
+                        "잠금 해제된 배지: $unlockedCount / ${cloudAchievements.size}",
+                    )).apply {
                         gravity = Gravity.CENTER
                         setTextColor(Color.parseColor("#096D65"))
                         setPadding(0, dp(8), 0, 0)
@@ -11415,6 +11916,9 @@ class MainActivity : AppCompatActivity() {
                     "I just finished a TempoStrike ${roundReportBadgeText(report)} report: total ${formatTrainingDuration(report.durationSeconds)}, ${report.totalHits} punches, peak ${forceDisplay(report.peakForceN)}, avg ${forceDisplay(report.avgForceN)}, ${formatCalories(report.caloriesBurned)}, and ${formatFatGrams(report.fatBurnedGrams)} equivalent fat burn.",
                     "Rapport TempoStrike ${roundReportBadgeText(report)} terminé : total ${formatTrainingDuration(report.durationSeconds)}, ${report.totalHits} coups, max ${forceDisplay(report.peakForceN)}, moy. ${forceDisplay(report.avgForceN)}, ${formatCalories(report.caloriesBurned)}, ${formatFatGrams(report.fatBurnedGrams)} graisse équivalente.",
                     "รายงาน TempoStrike ${roundReportBadgeText(report)}: รวม ${formatTrainingDuration(report.durationSeconds)}, ${report.totalHits} หมัด, สูงสุด ${forceDisplay(report.peakForceN)}, เฉลี่ย ${forceDisplay(report.avgForceN)}, ${formatCalories(report.caloriesBurned)}, ไขมันเทียบเท่า ${formatFatGrams(report.fatBurnedGrams)}",
+                    "Acabo de terminar un informe ${roundReportBadgeText(report)} de TempoStrike: ${formatTrainingDuration(report.durationSeconds)} en total, ${report.totalHits} golpes, máxima ${forceDisplay(report.peakForceN)}, media ${forceDisplay(report.avgForceN)}, ${formatCalories(report.caloriesBurned)} y ${formatFatGrams(report.fatBurnedGrams)} de grasa equivalente.",
+                    "Ich habe gerade einen TempoStrike-Bericht ${roundReportBadgeText(report)} abgeschlossen: insgesamt ${formatTrainingDuration(report.durationSeconds)}, ${report.totalHits} Schläge, Höchstwertung ${forceDisplay(report.peakForceN)}, Durchschnitt ${forceDisplay(report.avgForceN)}, ${formatCalories(report.caloriesBurned)} und ${formatFatGrams(report.fatBurnedGrams)} äquivalente Fettverbrennung.",
+                    "TempoStrike ${roundReportBadgeText(report)} 보고서를 완료했습니다: 총 ${formatTrainingDuration(report.durationSeconds)}, ${report.totalHits}회 타격, 최고 ${forceDisplay(report.peakForceN)}, 평균 ${forceDisplay(report.avgForceN)}, ${formatCalories(report.caloriesBurned)}, 환산 지방 연소량 ${formatFatGrams(report.fatBurnedGrams)}.",
                 )
             } else {
                 localText(
@@ -11451,6 +11955,9 @@ class MainActivity : AppCompatActivity() {
                     "I unlocked ${recent.size} new training badges: $names. Current tier: ${currentTierShareLabel()}.",
                     "J'ai débloqué ${recent.size} nouveau(x) badge(s) : $names. Rang actuel : ${currentTierShareLabel()}.",
                     "ฉันปลดล็อกเหรียญใหม่ ${recent.size} เหรียญ: $names ระดับปัจจุบัน: ${currentTierShareLabel()}",
+                    "Desbloqueé ${recent.size} nuevas insignias de entrenamiento: $names. Nivel actual: ${currentTierShareLabel()}.",
+                    "Ich habe ${recent.size} neue Trainingsabzeichen freigeschaltet: $names. Aktuelle Stufe: ${currentTierShareLabel()}.",
+                    "${recent.size}개의 새로운 훈련 배지 ${names}를 잠금 해제했습니다. 현재 등급: ${currentTierShareLabel()}.",
                 )
             } else {
                 localText(
@@ -11481,6 +11988,9 @@ class MainActivity : AppCompatActivity() {
                     "I am ranked ${me.rank} on the ${leaderboardBoardLabel(leaderboardBoard)} with ${leaderboardPrimaryValueText(me)}. Come challenge my score.",
                     "Je suis ${me.rank}e du classement ${leaderboardBoardLabel(leaderboardBoard)} avec ${leaderboardPrimaryValueText(me)}. Venez me défier.",
                     "ฉันอยู่อันดับ ${me.rank} ใน${leaderboardBoardLabel(leaderboardBoard)} ด้วยคะแนน ${leaderboardPrimaryValueText(me)} มาท้าฉันได้เลย",
+                    "Estoy clasificado como ${me.rank} en ${leaderboardBoardLabel(leaderboardBoard)} con ${leaderboardPrimaryValueText(me)}. Ven a desafiar mi puntuación.",
+                    "Ich bin auf Rang ${me.rank} der Rangliste ${leaderboardBoardLabel(leaderboardBoard)} mit ${leaderboardPrimaryValueText(me)}. Fordere meinen Wert heraus.",
+                    "${leaderboardBoardLabel(leaderboardBoard)}에서 ${leaderboardPrimaryValueText(me)}로 ${me.rank}위입니다. 제 기록에 도전해 보세요.",
                 )
             } else {
                 localText(
@@ -11488,6 +11998,9 @@ class MainActivity : AppCompatActivity() {
                     "I am climbing the ${leaderboardBoardLabel(leaderboardBoard)}. Come challenge me.",
                     "Je vise le classement ${leaderboardBoardLabel(leaderboardBoard)}. Venez me défier.",
                     "ฉันกำลังไต่อันดับ${leaderboardBoardLabel(leaderboardBoard)} มาท้ากันได้",
+                    "Estoy subiendo al ${leaderboardBoardLabel(leaderboardBoard)}. Ven a desafiarme.",
+                    "Ich steige in der Rangliste ${leaderboardBoardLabel(leaderboardBoard)} auf. Fordere mich heraus.",
+                    "${leaderboardBoardLabel(leaderboardBoard)} 순위에서 올라가고 있습니다. 도전해 보세요.",
                 )
             }
         runCatching {
@@ -11506,23 +12019,33 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "${value} 秒后开始..."
             AppLanguage.English -> "Starting in $value..."
             AppLanguage.French -> "Départ dans $value..."
+            AppLanguage.Spanish -> "Empieza en $value..."
+            AppLanguage.German -> "Start in $value..."
+            AppLanguage.Korean -> "${value}초 후 시작..."
             AppLanguage.Thai -> "เริ่มใน $value..."
+        }
+
+    private fun displayCountdownCue(value: Int): String =
+        when (selectedLanguage) {
+            AppLanguage.Chinese -> when (value) { 3 -> "三"; 2 -> "二"; else -> "一" }
+            else -> when (value) { 3 -> "three"; 2 -> "two"; else -> "one" }
         }
 
     private fun displayGoCue(): String =
         when (selectedLanguage) {
             AppLanguage.Chinese -> "开始"
-            AppLanguage.English -> "Go"
-            AppLanguage.French -> "Go"
-            AppLanguage.Thai -> "ไป"
+            else -> "Go"
         }
 
     private fun displayGoLabel(): String =
         when (selectedLanguage) {
             AppLanguage.Chinese -> "开始"
             AppLanguage.English -> "GO"
-            AppLanguage.French -> "GO"
-            AppLanguage.Thai -> "ไป"
+            AppLanguage.French -> "PARTEZ"
+            AppLanguage.Spanish -> "VAMOS"
+            AppLanguage.German -> "LOS"
+            AppLanguage.Korean -> "시작"
+            AppLanguage.Thai -> "เริ่ม"
         }
 
     private fun displayModeLabel(mode: TrainingMode): String =
@@ -11551,6 +12074,30 @@ class MainActivity : AppCompatActivity() {
                     TrainingMode.Burst15 -> "Explosif 15 s"
                 }
 
+            AppLanguage.Spanish ->
+                when (mode) {
+                    TrainingMode.Seconds30 -> "30 s"
+                    TrainingMode.Seconds60 -> "60 s"
+                    TrainingMode.Burst10 -> "Ráfaga de 10 s"
+                    TrainingMode.Burst15 -> "Ráfaga de 15 s"
+                }
+
+            AppLanguage.German ->
+                when (mode) {
+                    TrainingMode.Seconds30 -> "30 s"
+                    TrainingMode.Seconds60 -> "60 s"
+                    TrainingMode.Burst10 -> "10-s-Burst"
+                    TrainingMode.Burst15 -> "15-s-Burst"
+                }
+
+            AppLanguage.Korean ->
+                when (mode) {
+                    TrainingMode.Seconds30 -> "30초"
+                    TrainingMode.Seconds60 -> "60초"
+                    TrainingMode.Burst10 -> "10초 버스트"
+                    TrainingMode.Burst15 -> "15초 버스트"
+                }
+
             AppLanguage.Thai ->
                 when (mode) {
                     TrainingMode.Seconds30 -> "30 วินาที"
@@ -11566,6 +12113,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> String.format(Locale.US, "剩余 %.1f 秒", seconds)
             AppLanguage.English -> String.format(Locale.US, "%.1fs left", seconds)
             AppLanguage.French -> String.format(Locale.US, "%.1fs restantes", seconds)
+            AppLanguage.Spanish -> String.format(Locale.US, "Quedan %.1f s", seconds)
+            AppLanguage.German -> String.format(Locale.US, "Noch %.1f s", seconds)
+            AppLanguage.Korean -> String.format(Locale.US, "%.1f초 남음", seconds)
             AppLanguage.Thai -> String.format(Locale.US, "เหลือ %.1f วินาที", seconds)
         }
     }
@@ -11769,6 +12319,30 @@ class MainActivity : AppCompatActivity() {
                     Locale.ENGLISH,
                 )
 
+            AppLanguage.Spanish ->
+                linkedSetOf(
+                    Locale("es", "ES"),
+                    Locale("es"),
+                    Locale.US,
+                    Locale.ENGLISH,
+                )
+
+            AppLanguage.German ->
+                linkedSetOf(
+                    Locale.GERMANY,
+                    Locale.GERMAN,
+                    Locale.US,
+                    Locale.ENGLISH,
+                )
+
+            AppLanguage.Korean ->
+                linkedSetOf(
+                    Locale.KOREA,
+                    Locale.KOREAN,
+                    Locale.US,
+                    Locale.ENGLISH,
+                )
+
             AppLanguage.Thai ->
                 linkedSetOf(
                     Locale("th", "TH"),
@@ -11778,11 +12352,31 @@ class MainActivity : AppCompatActivity() {
                 )
         }
 
+    private fun countdownTtsLocales(): LinkedHashSet<Locale> =
+        if (selectedLanguage == AppLanguage.Chinese) {
+            linkedSetOf(
+                Locale.CHINA,
+                Locale.SIMPLIFIED_CHINESE,
+                Locale.CHINESE,
+                Locale.US,
+                Locale.ENGLISH,
+            )
+        } else {
+            linkedSetOf(
+                Locale.US,
+                Locale.UK,
+                Locale.ENGLISH,
+            )
+        }
+
     private fun selectedSpeechLanguageCode(): String =
         when (selectedLanguage) {
             AppLanguage.Chinese -> Locale.CHINESE.language
             AppLanguage.English -> Locale.ENGLISH.language
             AppLanguage.French -> Locale.FRENCH.language
+            AppLanguage.Spanish -> "es"
+            AppLanguage.German -> Locale.GERMAN.language
+            AppLanguage.Korean -> Locale.KOREAN.language
             AppLanguage.Thai -> "th"
         }
 
@@ -11793,36 +12387,63 @@ class MainActivity : AppCompatActivity() {
             currentLanguage.equals(Locale.ENGLISH.language, ignoreCase = true)
     }
 
-    private fun updateTtsLanguage() {
+    private fun updateTtsLanguage(preferredLocales: LinkedHashSet<Locale> = preferredTtsLocales()) {
         if (!ttsInitialized) {
             return
         }
         val speaker = tts ?: return
-        val preferredLocale = preferredTtsLocales().first()
-        val cached = ttsLocaleInUse
-        if (cached != null && cached.language == preferredLocale.language) {
-            // Already serving the right language family — skip the slow setLanguage round-trip.
+        val preferredLocale = preferredLocales.first()
+        val activeVoiceLocale = runCatching { speaker.voice?.locale }.getOrNull()
+        if (activeVoiceLocale?.language.equals(preferredLocale.language, ignoreCase = true)) {
+            // The engine's active voice is authoritative. A successful setLanguage() result alone
+            // does not guarantee that the engine actually switched voices.
+            ttsLocaleInUse = activeVoiceLocale
+            ttsReady = true
             return
         }
-        val candidates = preferredTtsLocales()
-        var appliedLocale: Locale? = null
+        val candidates = preferredLocales
+        var verifiedVoiceLocale: Locale? = null
         candidates.forEach { locale ->
-            if (appliedLocale != null) {
+            if (verifiedVoiceLocale != null) {
                 return@forEach
             }
             val result = speaker.setLanguage(locale)
             if (result != TextToSpeech.LANG_MISSING_DATA &&
                 result != TextToSpeech.LANG_NOT_SUPPORTED
             ) {
-                appliedLocale = locale
+                bestTtsVoiceForLocale(speaker, locale)?.let { voice ->
+                    speaker.setVoice(voice)
+                }
+                val actualLocale = runCatching { speaker.voice?.locale }.getOrNull()
+                if (actualLocale?.language.equals(locale.language, ignoreCase = true)) {
+                    verifiedVoiceLocale = actualLocale
+                }
             }
         }
-        ttsLocaleInUse = appliedLocale
-        ttsReady = appliedLocale != null
+        ttsLocaleInUse = verifiedVoiceLocale
+        ttsReady = verifiedVoiceLocale != null
     }
 
-    private fun speakCue(text: String, onDone: (() -> Unit)? = null): Boolean {
-        updateTtsLanguage()
+    private fun bestTtsVoiceForLocale(speaker: TextToSpeech, locale: Locale): Voice? =
+        runCatching {
+            speaker.voices
+                ?.asSequence()
+                ?.filter { voice -> voice.locale.language.equals(locale.language, ignoreCase = true) }
+                ?.sortedWith(
+                    compareByDescending<Voice> { voice ->
+                        locale.country.isNotBlank() && voice.locale.country.equals(locale.country, ignoreCase = true)
+                    }.thenByDescending { voice -> !voice.isNetworkConnectionRequired }
+                        .thenByDescending { voice -> voice.quality },
+                )
+                ?.firstOrNull()
+        }.getOrNull()
+
+    private fun speakCue(
+        text: String,
+        voiceLocales: LinkedHashSet<Locale> = preferredTtsLocales(),
+        onDone: (() -> Unit)? = null,
+    ): Boolean {
+        updateTtsLanguage(voiceLocales)
         if (!ttsReady) {
             onDone?.invoke()
             return false
@@ -11905,13 +12526,34 @@ class MainActivity : AppCompatActivity() {
         when {
             usesEnglishSpeechFallback() ->
                 when (text) {
-                    displayGoCue(), displayGoLabel(), "开始", "ไป", "GO", "Go" -> "Go"
+                    displayCountdownCue(3) -> "three"
+                    displayCountdownCue(2) -> "two"
+                    displayCountdownCue(1) -> "one"
+                    displayGoCue(), displayGoLabel(), "开始", "ไป", "เริ่ม", "GO", "Go" -> "Go"
                     else -> text
                 }
 
             selectedLanguage == AppLanguage.French ->
                 when (text) {
                     displayGoCue(), displayGoLabel() -> "Partez"
+                    else -> text
+                }
+
+            selectedLanguage == AppLanguage.Spanish ->
+                when (text) {
+                    displayGoCue(), displayGoLabel() -> "Vamos"
+                    else -> text
+                }
+
+            selectedLanguage == AppLanguage.German ->
+                when (text) {
+                    displayGoCue(), displayGoLabel() -> "Los"
+                    else -> text
+                }
+
+            selectedLanguage == AppLanguage.Korean ->
+                when (text) {
+                    displayGoCue(), displayGoLabel() -> "시작"
                     else -> text
                 }
 
@@ -11962,6 +12604,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> tr("language_chinese")
             AppLanguage.English -> tr("language_english")
             AppLanguage.French -> tr("language_french")
+            AppLanguage.Spanish -> tr("language_spanish")
+            AppLanguage.German -> tr("language_german")
+            AppLanguage.Korean -> tr("language_korean")
             AppLanguage.Thai -> tr("language_thai")
         }
 
@@ -11979,6 +12624,9 @@ class MainActivity : AppCompatActivity() {
         when (Locale.getDefault().language.lowercase(Locale.US)) {
             "zh" -> AppLanguage.Chinese
             "fr" -> AppLanguage.French
+            "es" -> AppLanguage.Spanish
+            "de" -> AppLanguage.German
+            "ko" -> AppLanguage.Korean
             "th" -> AppLanguage.Thai
             else -> AppLanguage.English
         }
@@ -11988,6 +12636,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "账号状态、语言与训练概览"
             AppLanguage.English -> "Account status, language, and training overview"
             AppLanguage.French -> "Statut du compte, langue et aperçu d'entraînement"
+            AppLanguage.Spanish -> "Estado de la cuenta, idioma y resumen de entrenamiento"
+            AppLanguage.German -> "Kontostatus, Sprache und Trainingsübersicht"
+            AppLanguage.Korean -> "계정 상태, 언어 및 훈련 개요"
             AppLanguage.Thai -> "สถานะบัญชี ภาษา และภาพรวมการฝึก"
         }
 
@@ -11996,6 +12647,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "最近训练结果会自动同步到云端"
             AppLanguage.English -> "Recent sessions are synced to the cloud automatically"
             AppLanguage.French -> "Les dernières séances sont synchronisées automatiquement"
+            AppLanguage.Spanish -> "Las sesiones recientes se sincronizan automáticamente con la nube"
+            AppLanguage.German -> "Letzte Einheiten werden automatisch mit der Cloud synchronisiert"
+            AppLanguage.Korean -> "최근 훈련 결과는 클라우드에 자동으로 동기화됩니다"
             AppLanguage.Thai -> "ผลการฝึกล่าสุดจะซิงก์ขึ้นคลาวด์อัตโนมัติ"
         }
 
@@ -12004,6 +12658,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "按锻炼时间、拳数、相对力量评分、卡路里与等效燃脂量排名"
             AppLanguage.English -> "Rank by duration, hits, Relative Power Score, calories, and equivalent fat burn"
             AppLanguage.French -> "Classement par durée, coups, score de puissance relative, calories et graisse équivalente"
+            AppLanguage.Spanish -> "Clasificación por duración, golpes, puntuación de potencia relativa, calorías y grasa equivalente"
+            AppLanguage.German -> "Rang nach Dauer, Schlägen, relativer Kraftwertung, Kalorien und äquivalenter Fettverbrennung"
+            AppLanguage.Korean -> "훈련 시간, 타격 수, 상대 파워 점수, 칼로리 및 환산 지방 연소량 순위"
             AppLanguage.Thai -> "จัดอันดับตามเวลา หมัด คะแนนพลังสัมพัทธ์ แคลอรี และไขมันเทียบเท่า"
         }
 
@@ -12012,6 +12669,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "选择图片"
             AppLanguage.English -> "Choose Photo"
             AppLanguage.French -> "Choisir une photo"
+            AppLanguage.Spanish -> "Elegir foto"
+            AppLanguage.German -> "Foto auswählen"
+            AppLanguage.Korean -> "사진 선택"
             AppLanguage.Thai -> "เลือกรูปภาพ"
         }
 
@@ -12020,6 +12680,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "移除图片"
             AppLanguage.English -> "Remove Photo"
             AppLanguage.French -> "Supprimer la photo"
+            AppLanguage.Spanish -> "Eliminar foto"
+            AppLanguage.German -> "Foto entfernen"
+            AppLanguage.Korean -> "사진 삭제"
             AppLanguage.Thai -> "ลบรูปภาพ"
         }
 
@@ -12028,6 +12691,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "可从手机相册选择头像图片，未选择时使用颜色头像。"
             AppLanguage.English -> "Choose an avatar photo from this phone, or keep the color avatar."
             AppLanguage.French -> "Choisissez une photo sur ce téléphone ou gardez l'avatar coloré."
+            AppLanguage.Spanish -> "Elige una foto de avatar del teléfono o conserva el avatar de color."
+            AppLanguage.German -> "Wähle ein Avatarfoto von diesem Telefon oder behalte den farbigen Avatar."
+            AppLanguage.Korean -> "휴대전화에서 아바타 사진을 선택하거나 색상 아바타를 유지하세요."
             AppLanguage.Thai -> "เลือกรูปโปรไฟล์จากโทรศัพท์ หรือใช้รูปแบบสีเดิม"
         }
 
@@ -12036,6 +12702,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "联系我们"
             AppLanguage.English -> "Contact Us"
             AppLanguage.French -> "Nous contacter"
+            AppLanguage.Spanish -> "Contáctanos"
+            AppLanguage.German -> "Kontakt"
+            AppLanguage.Korean -> "문의하기"
             AppLanguage.Thai -> "ติดต่อเรา"
         }
 
@@ -12044,6 +12713,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "关于我们"
             AppLanguage.English -> "About Us"
             AppLanguage.French -> "À propos"
+            AppLanguage.Spanish -> "Acerca de nosotros"
+            AppLanguage.German -> "Über uns"
+            AppLanguage.Korean -> "회사 정보"
             AppLanguage.Thai -> "เกี่ยวกับเรา"
         }
 
@@ -12052,6 +12724,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "开发者信息、联系邮箱及平台协议入口"
             AppLanguage.English -> "Developer details, contact email and policy links"
             AppLanguage.French -> "Informations développeur, e-mail et accès aux politiques"
+            AppLanguage.Spanish -> "Datos del desarrollador, correo de contacto y enlaces legales"
+            AppLanguage.German -> "Entwicklerangaben, Kontakt-E-Mail und Richtlinien"
+            AppLanguage.Korean -> "개발자 정보, 문의 이메일 및 정책 링크"
             AppLanguage.Thai -> "ข้อมูลผู้พัฒนา อีเมลติดต่อ และลิงก์นโยบาย"
         }
 
@@ -12060,6 +12735,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "公司信息"
             AppLanguage.English -> "Company"
             AppLanguage.French -> "Entreprise"
+            AppLanguage.Spanish -> "Empresa"
+            AppLanguage.German -> "Unternehmen"
+            AppLanguage.Korean -> "회사"
             AppLanguage.Thai -> "ข้อมูลบริษัท"
         }
 
@@ -12068,6 +12746,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "联系方式"
             AppLanguage.English -> "Contact"
             AppLanguage.French -> "Contact"
+            AppLanguage.Spanish -> "Contacto"
+            AppLanguage.German -> "Kontakt"
+            AppLanguage.Korean -> "연락처"
             AppLanguage.Thai -> "ช่องทางติดต่อ"
         }
 
@@ -12076,6 +12757,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "附加信息"
             AppLanguage.English -> "More Info"
             AppLanguage.French -> "Informations"
+            AppLanguage.Spanish -> "Más información"
+            AppLanguage.German -> "Weitere Informationen"
+            AppLanguage.Korean -> "추가 정보"
             AppLanguage.Thai -> "ข้อมูลเพิ่มเติม"
         }
 
@@ -12084,6 +12768,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> DEVELOPER_COMPANY_NAME_ZH
             AppLanguage.English -> DEVELOPER_COMPANY_NAME_EN
             AppLanguage.French -> DEVELOPER_COMPANY_NAME_FR
+            AppLanguage.Spanish -> DEVELOPER_COMPANY_NAME_EN
+            AppLanguage.German -> DEVELOPER_COMPANY_NAME_EN
+            AppLanguage.Korean -> DEVELOPER_COMPANY_NAME_EN
             AppLanguage.Thai -> DEVELOPER_COMPANY_NAME_TH
         }
 
@@ -12091,8 +12778,11 @@ class MainActivity : AppCompatActivity() {
         when (selectedLanguage) {
             AppLanguage.Chinese -> "专注于智能拳击产品与运动数据体验"
             AppLanguage.English -> "Focused on TempoStrike training products and sports data experiences"
-            AppLanguage.French -> "Spécialisée dans les produits de balle à capteurs intelligents et l'expérience des données sportives"
-            AppLanguage.Thai -> "มุ่งเน้นผลิตภัณฑ์ลูกบอลเซ็นเซอร์อัจฉริยะและประสบการณ์ข้อมูลการกีฬา"
+            AppLanguage.French -> "Spécialisée dans les produits d'entraînement de boxe connectés et les expériences de données sportives"
+            AppLanguage.Spanish -> "Especializada en productos de entrenamiento TempoStrike y experiencias con datos deportivos"
+            AppLanguage.German -> "Fokus auf TempoStrike-Trainingsprodukte und Sportdatenerlebnisse"
+            AppLanguage.Korean -> "TempoStrike 훈련 제품과 스포츠 데이터 경험에 집중"
+            AppLanguage.Thai -> "มุ่งเน้นผลิตภัณฑ์ฝึกชกมวยอัจฉริยะและประสบการณ์ข้อมูลกีฬา"
         }
 
     private fun developerEmailLabel(): String =
@@ -12100,6 +12790,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "邮箱"
             AppLanguage.English -> "Email"
             AppLanguage.French -> "E-mail"
+            AppLanguage.Spanish -> "Correo electrónico"
+            AppLanguage.German -> "E-Mail"
+            AppLanguage.Korean -> "이메일"
             AppLanguage.Thai -> "อีเมล"
         }
 
@@ -12108,6 +12801,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "发送邮件"
             AppLanguage.English -> "Send Email"
             AppLanguage.French -> "Envoyer un e-mail"
+            AppLanguage.Spanish -> "Enviar correo"
+            AppLanguage.German -> "E-Mail senden"
+            AppLanguage.Korean -> "이메일 보내기"
             AppLanguage.Thai -> "ส่งอีเมล"
         }
 
@@ -12116,6 +12812,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "当前 APP 版本号"
             AppLanguage.English -> "App Version"
             AppLanguage.French -> "Version de l'application"
+            AppLanguage.Spanish -> "Versión de la app"
+            AppLanguage.German -> "App-Version"
+            AppLanguage.Korean -> "앱 버전"
             AppLanguage.Thai -> "เวอร์ชันแอป"
         }
 
@@ -12124,6 +12823,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "隐私政策"
             AppLanguage.English -> "Privacy Policy"
             AppLanguage.French -> "Politique de confidentialité"
+            AppLanguage.Spanish -> "Política de privacidad"
+            AppLanguage.German -> "Datenschutzerklärung"
+            AppLanguage.Korean -> "개인정보 처리방침"
             AppLanguage.Thai -> "นโยบายความเป็นส่วนตัว"
         }
 
@@ -12132,6 +12834,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "用户协议"
             AppLanguage.English -> "User Agreement"
             AppLanguage.French -> "Accord utilisateur"
+            AppLanguage.Spanish -> "Acuerdo de usuario"
+            AppLanguage.German -> "Nutzungsvereinbarung"
+            AppLanguage.Korean -> "사용자 약관"
             AppLanguage.Thai -> "ข้อตกลงผู้ใช้"
         }
 
@@ -12140,6 +12845,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "可查看本应用当前版本对应的隐私政策与用户协议。"
             AppLanguage.English -> "Review the privacy policy and user agreement for the current app version."
             AppLanguage.French -> "Consultez la politique de confidentialité et l'accord utilisateur de cette version."
+            AppLanguage.Spanish -> "Consulta la política de privacidad y el acuerdo de usuario de esta versión."
+            AppLanguage.German -> "Datenschutzerklärung und Nutzungsvereinbarung dieser App-Version anzeigen."
+            AppLanguage.Korean -> "현재 앱 버전의 개인정보 처리방침과 사용자 약관을 확인할 수 있습니다."
             AppLanguage.Thai -> "ดูนโยบายความเป็นส่วนตัวและข้อตกลงผู้ใช้ของแอปเวอร์ชันนี้"
         }
 
@@ -12148,6 +12856,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "privacy_policy_zh.txt"
             AppLanguage.English -> "privacy_policy_en.txt"
             AppLanguage.French -> "privacy_policy_fr.txt"
+            AppLanguage.Spanish -> "privacy_policy_es.txt"
+            AppLanguage.German -> "privacy_policy_de.txt"
+            AppLanguage.Korean -> "privacy_policy_ko.txt"
             AppLanguage.Thai -> "privacy_policy_th.txt"
         }
 
@@ -12156,6 +12867,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "user_agreement_zh.txt"
             AppLanguage.English -> "user_agreement_en.txt"
             AppLanguage.French -> "user_agreement_fr.txt"
+            AppLanguage.Spanish -> "user_agreement_es.txt"
+            AppLanguage.German -> "user_agreement_de.txt"
+            AppLanguage.Korean -> "user_agreement_ko.txt"
             AppLanguage.Thai -> "user_agreement_th.txt"
         }
 
@@ -12164,6 +12878,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "当前文档暂不可用，请稍后重试。"
             AppLanguage.English -> "This document is currently unavailable. Please try again later."
             AppLanguage.French -> "Ce document n'est pas disponible pour le moment."
+            AppLanguage.Spanish -> "Este documento no está disponible en este momento. Inténtalo de nuevo más tarde."
+            AppLanguage.German -> "Dieses Dokument ist derzeit nicht verfügbar. Bitte später erneut versuchen."
+            AppLanguage.Korean -> "현재 문서를 사용할 수 없습니다. 잠시 후 다시 시도하세요."
             AppLanguage.Thai -> "เอกสารนี้ยังไม่พร้อมใช้งานในขณะนี้"
         }
 
@@ -12172,6 +12889,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> "关闭"
             AppLanguage.English -> "Close"
             AppLanguage.French -> "Fermer"
+            AppLanguage.Spanish -> "Cerrar"
+            AppLanguage.German -> "Schließen"
+            AppLanguage.Korean -> "닫기"
             AppLanguage.Thai -> "ปิด"
         }
 
@@ -12188,7 +12908,15 @@ class MainActivity : AppCompatActivity() {
         localText("最近训练结果会自动同步到云端", "Recent training sessions sync to the cloud automatically.", "Les dernières séances se synchronisent automatiquement dans le cloud.", "ผลการฝึกล่าสุดจะซิงก์ขึ้นคลาวด์อัตโนมัติ")
 
     private fun achievementsSubtitleText(unlockedCount: Int, totalCount: Int): String =
-        localText("已解锁 $unlockedCount / $totalCount", "Unlocked $unlockedCount / $totalCount", "$unlockedCount / $totalCount débloqués", "ปลดล็อกแล้ว $unlockedCount / $totalCount")
+        localText(
+            "已解锁 $unlockedCount / $totalCount",
+            "Unlocked $unlockedCount / $totalCount",
+            "$unlockedCount / $totalCount débloqués",
+            "ปลดล็อกแล้ว $unlockedCount / $totalCount",
+            "Desbloqueado $unlockedCount / $totalCount",
+            "Freigeschaltet $unlockedCount / $totalCount",
+            "잠금 해제된 $unlockedCount / $totalCount",
+        )
 
     private fun profileBestScoreLabel(): String =
         localText("全局最佳", "Overall best", "Meilleur score", "ดีที่สุดรวม")
@@ -12598,6 +13326,9 @@ class MainActivity : AppCompatActivity() {
                         "${outcome.streak}-day streak",
                         "Série ${outcome.streak} j",
                         "ต่อเนื่อง ${outcome.streak} วัน",
+                        "${outcome.streak} racha de días",
+                        "${outcome.streak}-Tagessträhne",
+                        "${outcome.streak}일 연속",
                     ) to "#FFB347",
                 )
                 add(displayModeLabel(report.mode) to "#FF9A30")
@@ -12665,6 +13396,9 @@ class MainActivity : AppCompatActivity() {
                 "Rank Up! ${tierLabelForKey(tier.key)} Lv.${tier.level}",
                 "Rang supérieur ! ${tierLabelForKey(tier.key)} Lv.${tier.level}",
                 "เลื่อนระดับ! ${tierLabelForKey(tier.key)} Lv.${tier.level}",
+                "¡Subida de rango! ${tierLabelForKey(tier.key)} Nv.${tier.level}",
+                "Rangaufstieg! ${tierLabelForKey(tier.key)} Lv.${tier.level}",
+                "등급 상승! ${tierLabelForKey(tier.key)} Lv.${tier.level}",
             )
         promotionBannerView.text = message
         promotionBannerView.visibility = View.VISIBLE
@@ -12702,6 +13436,9 @@ class MainActivity : AppCompatActivity() {
                 "You unlocked ${items.size} new badges in this session. Keep pushing for the next tier.",
                 "Vous avez débloqué ${items.size} badge(s). Gardez le rythme vers le rang suivant.",
                 "คุณปลดล็อกเหรียญใหม่ ${items.size} เหรียญ รักษาจังหวะเพื่อระดับถัดไป",
+                "Has desbloqueado ${items.size} insignias nuevas en esta sesión. Sigue avanzando hacia el siguiente nivel.",
+                "Du hast in dieser Einheit ${items.size} neue Abzeichen freigeschaltet. Weiter zur nächsten Stufe!",
+                "이 세션에서 ${items.size} 새 배지를 잠금 해제했습니다. 다음 단계를 위해 계속 노력하세요.",
             )
         showCelebrationDialog(
             accentColor = "#FFB347",
@@ -12719,6 +13456,9 @@ class MainActivity : AppCompatActivity() {
                 "Rank Up: ${tierLabelForKey(tier.key)}",
                 "Rang supérieur : ${tierLabelForKey(tier.key)}",
                 "เลื่อนระดับ: ${tierLabelForKey(tier.key)}",
+                "Subir de rango: ${tierLabelForKey(tier.key)}",
+                "Rangaufstieg: ${tierLabelForKey(tier.key)}",
+                "등급 향상: ${tierLabelForKey(tier.key)}",
             )
         val body =
             localText(
@@ -12726,6 +13466,9 @@ class MainActivity : AppCompatActivity() {
                 "Your best round score is now ${tier.bestHits}. You have been promoted to ${tierLabelForKey(tier.key)}.",
                 "Votre meilleur score par round atteint ${tier.bestHits}. Promotion en ${tierLabelForKey(tier.key)}.",
                 "สถิติรอบดีที่สุดเป็น ${tier.bestHits} เลื่อนเป็น ${tierLabelForKey(tier.key)} แล้ว",
+                "Tu mejor puntuación de ronda ahora es ${tier.bestHits}. Ha sido ascendido a ${tierLabelForKey(tier.key)}.",
+                "Ihr bestes Rundenergebnis ist jetzt ${tier.bestHits}. Sie wurden zum ${tierLabelForKey(tier.key)} befördert.",
+                "귀하의 최고 라운드 점수는 이제 ${tier.bestHits}입니다. 귀하는 ${tierLabelForKey(tier.key)}로 승격되었습니다.",
             )
         showCelebrationDialog(
             accentColor = "#FFD060",
@@ -12855,6 +13598,9 @@ class MainActivity : AppCompatActivity() {
                 AppLanguage.Chinese -> "太棒了！$title！继续保持，向更强进发！"
                 AppLanguage.English -> "Amazing! $title! Keep going strong!"
                 AppLanguage.French -> "Magnifique ! $title ! Continuez comme ça !"
+                AppLanguage.Spanish -> "¡Increíble! ¡$title! ¡Sigue así!"
+                AppLanguage.German -> "Großartig! $title! Weiter so!"
+                AppLanguage.Korean -> "최고예요! $title! 계속 힘내세요!"
                 AppLanguage.Thai -> "ยอดเยี่ยม! $title! ลุยต่อไป!"
             }
         }
@@ -13138,6 +13884,9 @@ class MainActivity : AppCompatActivity() {
                             "Round ${round.roundIndex}/${round.totalRounds}: ${round.roundHits} hits | ${round.cumulativeHits} total | ${formatCalories(round.cumulativeCaloriesBurned)} | ${formatFatGrams(round.cumulativeFatBurnedGrams)} equivalent fat",
                             "Round ${round.roundIndex}/${round.totalRounds} : ${round.roundHits} coups | ${round.cumulativeHits} total | ${formatCalories(round.cumulativeCaloriesBurned)} | ${formatFatGrams(round.cumulativeFatBurnedGrams)} graisse équiv.",
                             "รอบ ${round.roundIndex}/${round.totalRounds}: ${round.roundHits} หมัด | รวม ${round.cumulativeHits} | ${formatCalories(round.cumulativeCaloriesBurned)} | ไขมันเทียบเท่า ${formatFatGrams(round.cumulativeFatBurnedGrams)}",
+                            "Ronda ${round.roundIndex}/${round.totalRounds}: ${round.roundHits} acierta | ${round.cumulativeHits} total | ${formatCalories(round.cumulativeCaloriesBurned)} | ${formatFatGrams(round.cumulativeFatBurnedGrams)} grasa equivalente",
+                            "Runde ${round.roundIndex}/${round.totalRounds}: ${round.roundHits} Schläge | ${round.cumulativeHits} Gesamt | ${formatCalories(round.cumulativeCaloriesBurned)} | ${formatFatGrams(round.cumulativeFatBurnedGrams)} äquivalentes Fett",
+                            "라운드 ${round.roundIndex}/${round.totalRounds}: ${round.roundHits}회 타격 | 누적 ${round.cumulativeHits}회 | ${formatCalories(round.cumulativeCaloriesBurned)} | ${formatFatGrams(round.cumulativeFatBurnedGrams)} 환산 지방",
                         ),
                     ).apply {
                         setTextColor(Color.parseColor("#557A7D"))
@@ -13685,6 +14434,9 @@ class MainActivity : AppCompatActivity() {
             AppLanguage.Chinese -> Locale.SIMPLIFIED_CHINESE
             AppLanguage.English -> Locale.US
             AppLanguage.French -> Locale.FRANCE
+            AppLanguage.Spanish -> Locale("es", "ES")
+            AppLanguage.German -> Locale.GERMANY
+            AppLanguage.Korean -> Locale.KOREA
             AppLanguage.Thai -> Locale("th", "TH")
         }
 
@@ -13814,8 +14566,10 @@ class MainActivity : AppCompatActivity() {
             minWidth = 0
             minimumWidth = 0
             textSize = 13f
+            maxLines = 1
+            setAutoSizeTextTypeUniformWithConfiguration(10, 13, 1, TypedValue.COMPLEX_UNIT_SP)
             isAllCaps = false
-            setPadding(dp(16), dp(11), dp(16), dp(11))
+            setPadding(dp(8), dp(11), dp(8), dp(11))
             elevation = dp(2).toFloat()
             layoutParams =
                 LinearLayout.LayoutParams(

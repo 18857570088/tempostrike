@@ -1,0 +1,44 @@
+TempoStrike-Nutzungsvereinbarung
+Version: V2.1
+Gültig ab: 2026-09-17
+
+1. Geltungsbereich
+Diese Vereinbarung gilt für die TempoStrike-App sowie die von Shaoxing Weimai Technology Co., Ltd. bereitgestellten Dienste zur Verbindung mit der intelligenten SENWALL#-Box-Wandpratze, für Trainingsaufzeichnungen, Erfolge, Ranglisten, Profil- und Audiodienste. Bitte lies auch die TempoStrike-Datenschutzerklärung. Die Nutzung des Dienstes unterliegt dieser Vereinbarung; wenn du nicht zustimmst, beende die Nutzung. Punkte, die eine gesonderte Einwilligung erfordern, werden separat angezeigt.
+
+2. Funktionen und Abhängigkeiten
+TempoStrike verbindet sich mit einer SENWALL#-Wandpratze mit sechs Feldern und zeigt kumulierte Schlagzahl, relative Kraftwertung, getroffenes Feld und Akkustatus an. Die App bietet Live- und Rundentraining, freien und taktgeführten Modus, Einstellungen von 180–400 BPM, an die BPM angepassten Groove und Hintergrundmusik, Berichte, Erfolge und Ranglisten. Einige Audiodaten werden in der App erzeugt oder sind darin enthalten.
+Verbindung, Cloud-Synchronisierung und Ressourcen hängen von der Pratze, Bluetooth des Telefons, Systemberechtigungen, Netzwerk und Clouddienst ab. Unterschiede bei Geräten und Systemen können Verfügbarkeit, Timing und Daten beeinflussen.
+
+3. Benutzer-ID und Profil
+Bei der ersten Nutzung erstellt die App automatisch eine Benutzer-ID und eine Installations-ID zur Zuordnung von Cloud-Trainingsdaten. Schütze dein Telefon und deine App-Daten. Du kannst Spitzname, Sprache, Region und Avatar einstellen. Ein ausgewähltes Avatarfoto wird lokal angezeigt; Avatarfarbe und andere Profilfelder können mit der Cloud synchronisiert werden. Gib dich nicht als andere Person aus und übermittle keine Inhalte, die deren Rechte verletzen.
+
+4. Sicheres Training
+Stelle vor der Nutzung sicher, dass die Wandpratze fest montiert und der Bereich frei ist. Wärme dich auf und trage geeigneten Handschutz. Wähle eine deinem Zustand angemessene Intensität. Die Einstellung von 180–400 BPM steuert das Audiotempo; sie ist keine vorgeschriebene Schlagfrequenz. Beende das Training sofort bei Brustschmerzen, Schwindel, Verletzungen oder anderen Beschwerden und hole bei Bedarf professionelle Hilfe. Minderjährige sollten unter Aufsicht eines Erziehungsberechtigten trainieren.
+
+5. Bluetooth-Daten und Schätzwerte
+Die App verwendet Bluetooth-Daten der Wandpratze, um Schlagzahl, Trefferfelder 1–6 und relative Kraftwertung anzuzeigen. Sensoren, Montage, Signalqualität und Technik können die Ergebnisse beeinflussen. Die relative Kraftwertung ist der vom Gerät gemeldete Wert, wurde nicht mit einem Standard-Kraftmessgerät kalibriert und besitzt keine physikalische Einheit wie kg, kgf oder N. Verwende sie nur zum Vergleich von Trends unter ähnlichen Bedingungen.
+Kalorien, äquivalente Fettverbrennung, Taktgenauigkeit, Kombinationen und weitere Statistiken sind Trainingsrückmeldungen oder Schätzungen. Sie sind keine medizinische Diagnose, Rehabilitationsbewertung, Ernährungsberatung oder offizielle Wettkampfentscheidung.
+
+6. Cloud-Synchronisierung, Ranglisten und Teilen
+Nach jeder Runde versucht die App, eine Trainingszusammenfassung in die TempoStrike-Cloud hochzuladen. Ist das Gerät offline oder schlägt der Upload fehl, wird die Zusammenfassung lokal vorgemerkt und bei verfügbarer Netzwerkverbindung erneut übertragen. Der Abschluss hängt von Netzwerk und Dienst ab; durch Deinstallation oder Löschen der App-Daten können noch nicht hochgeladene Berichte verloren gehen.
+Ranglisten können anderen Benutzern deinen Spitznamen, die maskierte Benutzer-ID, Region, Stufe und Ergebnis anzeigen. Wenn du ein Poster oder einen Text teilst, erhält die ausgewählte App diesen Inhalt. Berücksichtige diese Sichtbarkeit bei der Wahl deines Spitznamens und beim Teilen.
+
+7. Zulässige Nutzung
+Du darfst keine Trainingsergebnisse fälschen, die Fairness der Rangliste beeinträchtigen, Dienstschnittstellen angreifen oder missbrauchen, rechtswidrige oder verletzende Inhalte verbreiten oder die App, Audiodaten oder andere Inhalte ohne Erlaubnis kopieren, extrahieren oder kommerziell verwerten, soweit das Gesetz dies nicht ausdrücklich erlaubt. Bei eindeutigem Missbrauch oder Rechtsverletzungen können wir entsprechende Funktionen oder Ranglistenanzeigen angemessen einschränken und einen Kontaktweg für Einwände anbieten.
+
+8. Inhalte und geistiges Eigentum
+Die Marke TempoStrike, Oberfläche, der Code, Grafiken, Abzeichen, Texte, Soundeffekte, der synthetisierte Rhythmus und enthaltene Musik gehören uns oder ihren rechtmäßigen Eigentümern. Du erhältst nur die für die persönliche Nutzung des Dienstes erforderliche beschränkte Erlaubnis, kein Eigentum und kein gesondertes Recht zur Weiterverteilung oder kommerziellen Nutzung.
+
+9. Änderungen und Unterbrechungen
+Wartung, Aktualisierungen, Sicherheit, Netzwerkprobleme oder Hardwarekompatibilität können Änderungen oder vorübergehende Unterbrechungen einzelner Dienstteile erfordern. Wir bemühen uns angemessen, Beeinträchtigungen zu verringern. Wesentliche Änderungen des Dienstes oder dieser Vereinbarung werden über die App, Versionshinweise oder eine andere angemessene Methode bekanntgegeben.
+
+10. Verantwortung
+Befolge die Installationsanweisungen und Hinweise für sicheres Training. Die Verantwortung für Folgen unsachgemäßer Montage, Training über die körperliche Belastbarkeit hinaus, Bluetooth- oder Netzwerkausfälle und ähnliche Umstände richtet sich nach den Tatsachen und dem anwendbaren Recht. Diese Vereinbarung schließt Verbraucher- oder Personenschadenrechte, die gesetzlich nicht ausgeschlossen werden dürfen, weder aus noch beschränkt sie diese.
+
+11. Anwendbares Recht und Streitigkeiten
+Diese Vereinbarung unterliegt dem Recht der Volksrepublik China, ohne zwingende Verbraucher- oder Datenschutzrechte an deinem Wohnort zu beeinträchtigen. Die Parteien sollen zunächst eine einvernehmliche Lösung anstreben; andernfalls kann jede Partei ein zuständiges Gericht anrufen.
+
+12. Kontakt
+Betreiber: Shaoxing Weimai Technology Co., Ltd.
+E-Mail: zclei@vip.sina.com
+Kontaktiere uns zum Dienst, bei Beschwerden oder Einwänden gegen eine Diensteinschränkung.

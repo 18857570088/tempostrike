@@ -1,0 +1,44 @@
+Acuerdo de usuario de TempoStrike
+Versión: V2.1
+Fecha de entrada en vigor: 2026-09-17
+
+1. Ámbito
+Este Acuerdo se aplica a la app TempoStrike y a los servicios de conexión con la diana mural de boxeo inteligente SENWALL#, registros de entrenamiento, logros, clasificaciones, perfil y audio proporcionados por Shaoxing Weimai Technology Co., Ltd. Lee también la Política de privacidad de TempoStrike. El uso del servicio está sujeto a este Acuerdo; si no estás de acuerdo, deja de utilizarlo. Los asuntos que requieran consentimiento separado se presentarán por separado.
+
+2. Funciones y dependencias
+TempoStrike se conecta a una diana mural SENWALL# de seis módulos y muestra el recuento acumulado de golpes, la Puntuación de Potencia Relativa, el módulo golpeado y el estado de la batería. Ofrece entrenamiento en directo y por rondas, modos libre y de seguimiento de ritmo, ajustes de 180–400 BPM, base rítmica y música de fondo adaptadas a los BPM, informes, logros y clasificaciones. Parte del audio se genera o se incluye en la aplicación.
+La conexión, la sincronización con la nube y los recursos dependen de la diana, el Bluetooth del teléfono, los permisos del sistema, la red y el servicio en la nube. Las diferencias entre dispositivos y sistemas pueden afectar la disponibilidad, el tiempo y los datos.
+
+3. ID de usuario y perfil
+En el primer uso, la aplicación genera automáticamente un ID de usuario y un ID de instalación para asociar los registros de entrenamiento en la nube. Protege tu teléfono y los datos de la aplicación. Puedes configurar apodo, idioma, región y avatar. La foto de avatar elegida se muestra localmente; el color del avatar y otros campos del perfil pueden sincronizarse con la nube. No suplantes a otras personas ni envíes material que vulnere sus derechos.
+
+4. Entrenamiento seguro
+Antes de usar el producto, comprueba que la diana esté firmemente instalada y que la zona esté despejada. Calienta y utiliza protección adecuada para las manos. Elige una intensidad apropiada para tu estado. El ajuste de 180–400 BPM controla el tempo del audio; no es una frecuencia de golpeo obligatoria. Detente inmediatamente si sientes dolor en el pecho, mareos, lesión u otra molestia y busca ayuda profesional cuando sea necesario. Los menores deben entrenar bajo la supervisión de un tutor.
+
+5. Datos Bluetooth y estimaciones
+La aplicación utiliza los datos Bluetooth de la diana para mostrar el recuento de golpes, los módulos 1–6 y la Puntuación de Potencia Relativa. Los sensores, el montaje, la calidad de la señal y la técnica pueden afectar los resultados. La Puntuación de Potencia Relativa es el valor comunicado por el hardware, no se ha calibrado con un medidor de fuerza estándar y no tiene una unidad física como kg, kgf o N. Utilízala solo para observar tendencias en condiciones comparables.
+Las calorías, la grasa equivalente, la precisión de ritmo, los combos y otras estadísticas son información o estimaciones de ejercicio. No constituyen diagnóstico médico, evaluación de rehabilitación, consejo nutricional ni juicio oficial de competición.
+
+6. Sincronización, clasificaciones y compartición
+Después de cada ronda, la aplicación intenta subir un resumen del entrenamiento a la nube de TempoStrike. Si no hay conexión o falla la carga, guarda el resumen en una cola local y lo reintenta cuando haya red. La finalización depende de las condiciones de red y del servicio; desinstalar la aplicación o borrar sus datos puede perder informes no subidos.
+Las clasificaciones pueden mostrar a otros usuarios tu apodo, ID de usuario enmascarado, región, nivel y resultado. Cuando compartes un póster o texto, la aplicación seleccionada recibe ese contenido. Ten en cuenta esta visibilidad al elegir apodo o compartir.
+
+7. Uso aceptable
+No falsifiques resultados, perjudiques la equidad de las clasificaciones, ataques o abuses de las interfaces del servicio, distribuyas material ilegal o infractor ni copies, extraigas o explotes comercialmente la aplicación, el audio u otros contenidos sin autorización, salvo que la ley lo permita expresamente. Podemos limitar razonablemente funciones o la visualización en clasificaciones ante abusos o infracciones claros y ofrecer un canal de contacto para objeciones.
+
+8. Contenido y propiedad intelectual
+La marca TempoStrike, la interfaz, el código, los gráficos, las insignias, los textos, los efectos de sonido, el ritmo sintetizado y la música incluida pertenecen a nosotros o a sus titulares legítimos. Solo recibes el permiso limitado necesario para el uso personal del servicio, no la propiedad ni un derecho independiente para redistribuir o explotar comercialmente el contenido.
+
+9. Cambios e interrupciones
+El mantenimiento, las actualizaciones, la seguridad, los problemas de red o la compatibilidad de hardware pueden obligarnos a cambiar o interrumpir temporalmente parte del servicio. Haremos esfuerzos razonables para reducir las interrupciones. Los cambios importantes del servicio o del Acuerdo se anunciarán mediante la aplicación, las notas de la versión u otro método razonable.
+
+10. Responsabilidad
+Sigue las instrucciones de instalación y las indicaciones de entrenamiento seguro. La responsabilidad por los efectos de un montaje incorrecto, entrenamiento por encima de la capacidad física, fallos de Bluetooth o red y circunstancias similares se determinará según los hechos y la legislación aplicable. Este Acuerdo no excluye ni limita derechos de consumidores o por lesiones personales que legalmente no puedan excluirse.
+
+11. Ley aplicable y disputas
+Este Acuerdo se rige por las leyes de la República Popular China, sin afectar las protecciones obligatorias de consumidores o datos personales aplicables donde resides. Las partes intentarán primero resolver amistosamente las disputas; de lo contrario, cualquiera podrá presentar una reclamación ante un tribunal competente.
+
+12. Contacto
+Operador: Shaoxing Weimai Technology Co., Ltd.
+Correo electrónico: zclei@vip.sina.com
+Contáctanos sobre el servicio, reclamaciones u objeciones a una restricción del servicio.
